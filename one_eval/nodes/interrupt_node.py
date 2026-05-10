@@ -34,6 +34,20 @@ class InterruptNode(BaseNode):
         # 节点说明：{"QueryUnderstandNode": "...", "BenchSearchNode": "...", ...}
         self.node_docs = node_docs or {}
 
+    @staticmethod
+    def _is_approved_input(user_input: Any) -> bool:
+        if isinstance(user_input, str):
+            normalized = user_input.strip().lower()
+            return normalized in {"approved", "approve", "confirm", "continue", "ok", "yes"}
+        if isinstance(user_input, dict):
+            action = user_input.get("action")
+            if isinstance(action, str) and action.strip().lower() in {"approved", "approve", "confirm", "continue"}:
+                return True
+            approved = user_input.get("approved")
+            if isinstance(approved, bool):
+                return approved
+        return False
+
     async def run(self, state: NodeState, config: RunnableConfig) -> Command:
         log.info(f"开始执行安全/人工检查...")
 
@@ -81,6 +95,21 @@ class InterruptNode(BaseNode):
             except Exception:
                 content_str = str(user_input)
             history.append({"role": "user", "content": content_str})
+
+            # MetricReviewNode: 用户已在前端确认 metric 组合时，直接继续，
+            # 避免再次调用 HumanInLoopAgent 造成额外等待。
+            if self.name == "MetricReviewNode" and self._is_approved_input(user_input):
+                new_approved_ids = list(approved_ids)
+                if validator_id not in new_approved_ids:
+                    new_approved_ids.append(validator_id)
+                update_dict: Dict[str, Any] = {
+                    "approved_warning_ids": new_approved_ids,
+                    "waiting_for_human": False,
+                    "human_feedback": content_str,
+                    "llm_history": history,
+                }
+                log.info("MetricReviewNode 收到 approved，跳过 HumanInLoopAgent，直接继续。")
+                return Command(goto=self.success_node, update=update_dict)
 
             # --------- 构造 node_io 记录（可以按需扩展）---------
             node_io: Dict[str, Any] = {

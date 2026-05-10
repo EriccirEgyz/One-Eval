@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import copy
@@ -198,7 +199,7 @@ class ScoreCalcAgent(CustomAgent):
             log.info(f"[{bench_name}] Running metrics: {[p.get('name') for p in runtime_plan if isinstance(p, dict)]}")
             
             try:
-                bench_result = runner.run_bench(bench, runtime_plan)
+                bench_result = await asyncio.to_thread(runner.run_bench, bench, runtime_plan)
             except Exception as e:
                 log.error(f"[{bench_name}] Critical error in runner.run_bench: {e}", exc_info=True)
                 bench_result = {"error": str(e)}

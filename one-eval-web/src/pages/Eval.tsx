@@ -720,6 +720,18 @@ export const Eval = () => {
           }
       } catch (err) {
           console.error("Failed to delete history item", err);
+          const detail = axios.isAxiosError(err)
+              ? (err.response?.data?.detail || err.message)
+              : (err instanceof Error ? err.message : "unknown error");
+          setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: "system",
+              content: t({
+                  zh: `删除历史失败：${detail}`,
+                  en: `Failed to delete history: ${detail}`,
+              }),
+              timestamp: Date.now(),
+          }]);
       }
   };
 

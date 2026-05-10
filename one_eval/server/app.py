@@ -1590,6 +1590,58 @@ async def get_history():
     return items
 
 
+@app.delete("/api/workflow/history/{thread_id}")
+async def delete_history(thread_id: str):
+    tid = str(thread_id or "").strip()
+    if not tid:
+        raise HTTPException(status_code=400, detail="thread_id is required")
+
+    running_task = RUNNING_WORKFLOW_TASKS.get(tid)
+    if running_task and not running_task.done():
+        log.warning(f"Deleting running thread {tid}, cancelling active workflow task first.")
+        running_task.cancel()
+
+    clear_progress(tid)
+    _thread_interrupt_cache.pop(tid, None)
+
+    deleted_rows = 0
+    try:
+        async with get_checkpointer(DB_PATH, mode="run") as cp:
+            async with cp.conn.execute("SELECT name FROM sqlite_master WHERE type='table'") as cursor:
+                tables = await cursor.fetchall()
+
+            for (table_name,) in tables:
+                if not isinstance(table_name, str) or table_name.startswith("sqlite_"):
+                    continue
+                async with cp.conn.execute(f'PRAGMA table_info("{table_name}")') as cinfo:
+                    cols = await cinfo.fetchall()
+                has_thread_id = any(len(col) > 1 and col[1] == "thread_id" for col in cols)
+                if not has_thread_id:
+                    continue
+                cur = await cp.conn.execute(
+                    f'DELETE FROM "{table_name}" WHERE thread_id = ?',
+                    (tid,),
+                )
+                if isinstance(cur.rowcount, int) and cur.rowcount > 0:
+                    deleted_rows += cur.rowcount
+            await cp.conn.commit()
+    except Exception as e:
+        log.error(f"Failed to delete workflow history for {tid}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="failed to delete history")
+
+    thread_meta = _load_thread_meta()
+    removed_meta = False
+    if tid in thread_meta:
+        thread_meta.pop(tid, None)
+        _write_json_file(THREAD_META_FILE, thread_meta)
+        removed_meta = True
+
+    if deleted_rows <= 0 and not removed_meta:
+        raise HTTPException(status_code=404, detail="thread not found")
+
+    return {"ok": True, "thread_id": tid, "deleted_rows": deleted_rows}
+
+
 @app.get("/api/models")
 def get_models():
     models = _load_json_file(MODELS_FILE, default=[])
