@@ -263,6 +263,11 @@ def _normalize_chat_completions_url(url: str, provider: str = "openai_compatible
         return raw.rstrip("/")
     if lowered.endswith("/v1"):
         return f"{raw.rstrip('/')}/chat/completions"
+    # Common OpenAI-compatible bases (e.g. Volcengine Ark /api/v3, some gateways /v4)
+    if lowered.endswith("/v3") or lowered.endswith("/v4"):
+        return f"{raw.rstrip('/')}/chat/completions"
+    if lowered.endswith("/api/v3") or lowered.endswith("/api/v4"):
+        return f"{raw.rstrip('/')}/chat/completions"
     parsed = urlparse(raw)
     if provider_name == "deepseek" and parsed.netloc.lower() == "api.deepseek.com":
         return f"{raw.rstrip('/')}/chat/completions"
@@ -1748,7 +1753,23 @@ async def test_model_request(req: ModelRequestTestRequest):
     if 200 <= r.status_code < 300:
         try:
             data = r.json()
-            message = ((data.get("choices") or [{}])[0].get("message") or {})
+            if isinstance(data, dict):
+                biz_success = data.get("success")
+                biz_code = data.get("code")
+                # Some gateways return HTTP 200 but embed upstream failure in payload.
+                has_biz_fail = (
+                    (isinstance(biz_success, bool) and not biz_success)
+                    or (isinstance(biz_code, int) and biz_code >= 400)
+                )
+                if has_biz_fail:
+                    return {
+                        "ok": False,
+                        "status_code": r.status_code,
+                        "detail": f"Business error in response body: {str(data)[:300]}",
+                        "mode": "chat",
+                    }
+
+            message = ((data.get("choices") or [{}])[0].get("message") or {}) if isinstance(data, dict) else {}
             content = message.get("content") or ""
             reasoning = message.get("reasoning_content") or ""
             preview = (content or reasoning or str(data))[:200]

@@ -53,6 +53,26 @@ interface CaseRow {
   score?: number;
 }
 
+interface DomainRow {
+  domain: string;
+  avg_score: number;
+  score?: number;
+  num_samples: number;
+  bench_count: number;
+  benches: string[];
+  best_bench?: string;
+  worst_bench?: string;
+  best_score?: number;
+  worst_score?: number;
+  bench_coverage_ratio?: number;
+  sample_coverage_ratio?: number;
+  score_spread?: number;
+  strongest_benches?: string[];
+  weakest_benches?: string[];
+  strength_signal?: string;
+  weakness_signal?: string;
+}
+
 interface ReportData {
   version: string;
   generated_at: number;
@@ -70,37 +90,10 @@ interface ReportData {
     rows: BenchRow[];
   };
   domain_performance?: {
-    rows: Array<{
-      domain: string;
-      avg_score: number;
-      score?: number;
-      num_samples: number;
-      bench_count: number;
-      benches: string[];
-      best_bench?: string;
-      worst_bench?: string;
-    }>;
+    rows: DomainRow[];
   };
   domain_analysis_v2?: {
-    rows: Array<{
-      domain: string;
-      avg_score: number;
-      score?: number;
-      num_samples: number;
-      bench_count: number;
-      benches: string[];
-      best_bench?: string;
-      worst_bench?: string;
-      best_score?: number;
-      worst_score?: number;
-      bench_coverage_ratio?: number;
-      sample_coverage_ratio?: number;
-      score_spread?: number;
-      strongest_benches?: string[];
-      weakest_benches?: string[];
-      strength_signal?: string;
-      weakness_signal?: string;
-    }>;
+    rows: DomainRow[];
     meta?: {
       total_benches?: number;
       total_samples?: number;
