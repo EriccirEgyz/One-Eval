@@ -3,15 +3,20 @@ general.py —— 通用维度指标:正确性(correctness) + 格式遵循(forma
 
 设计原则:每个指标只服务一个清晰的质量维度,不做参数变体的重复注册。
 - correctness:exact_match / numerical_match / choice_accuracy / multilabel_f1
-- format    :extraction_rate(可抽取性) / format_compliance(答案分隔规范度)
-- diagnostic:missing_answer_rate(弃答率,= 1 - 抽取率,供归因)
+- format    :extraction_rate(可抽取性) / format_compliance(答案分隔规范度) / json_validity
+- diagnostic:missing_answer_rate(弃答率,= 1 - 抽取率,供归因) / empty_or_whitespace_rate
+- fluency   :repetition_rate(退化重复) / garbled_text_rate(乱码/异常编码)
 """
+import json
+import re
+import unicodedata
 from typing import List, Dict, Any, Optional, Set, Tuple
 from one_eval.utils.extractor import (
     normalize_text,
     extract_first_number,
     extract_choice,
     extract_multi_choice,
+    extract_answer_set,
     AnswerExtractor,
 )
 from one_eval.core.metric_registry import register_metric, MetricCategory, MetricDimension
@@ -165,6 +170,47 @@ def compute_multilabel_f1(preds: List[Any], refs: List[Any], **kwargs) -> Dict[s
         scores.append(f1)
     return {"score": sum(scores) / len(scores) if scores else 0.0, "details": scores}
 
+
+@register_metric(
+    name="set_f1",
+    desc="开放答案集合 F1",
+    usage="列表型 QA、实体抽取、多答案短答。将预测与参考解析为开放文本集合后计算 F1",
+    categories=[MetricCategory.QA_SINGLE, MetricCategory.QA_MULTI],
+    dimension=MetricDimension.CORRECTNESS,
+)
+def compute_set_f1(preds: List[Any], refs: List[Any], **kwargs) -> Dict[str, Any]:
+    scores = []
+    artifacts = {"pred_sets": [], "ref_sets": [], "tp": [], "fp": [], "fn": []}
+
+    for p, r in zip(preds, refs):
+        p_set = extract_answer_set(p)
+        r_set = extract_answer_set(r)
+        tp = p_set & r_set
+        fp = p_set - r_set
+        fn = r_set - p_set
+
+        if not p_set and not r_set:
+            f1 = 1.0
+        elif not p_set or not r_set:
+            f1 = 0.0
+        else:
+            prec = len(tp) / (len(tp) + len(fp)) if (tp or fp) else 0.0
+            rec = len(tp) / (len(tp) + len(fn)) if (tp or fn) else 0.0
+            f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+
+        scores.append(f1)
+        artifacts["pred_sets"].append(sorted(p_set))
+        artifacts["ref_sets"].append(sorted(r_set))
+        artifacts["tp"].append(sorted(tp))
+        artifacts["fp"].append(sorted(fp))
+        artifacts["fn"].append(sorted(fn))
+
+    return {
+        "score": sum(scores) / len(scores) if scores else 0.0,
+        "details": scores,
+        "artifacts": artifacts,
+    }
+
 # __APPEND_FORMAT_DIMENSION__
 
 
@@ -208,6 +254,8 @@ def compute_extraction_rate(preds: List[Any], refs: List[Any], **kwargs) -> Dict
     }
 
 
+# ============================ 诊断维度 ============================
+
 @register_metric(
     name="missing_answer_rate",
     desc="弃答率:未能解析出有效答案的比例 (= 1 - 可抽取率)",
@@ -223,6 +271,36 @@ def compute_missing_answer_rate(preds: List[Any], refs: List[Any], **kwargs) -> 
         "score": 1.0 - result["score"],
         "details": [1.0 - d for d in result["details"]],
         "artifacts": result["artifacts"],
+    }
+
+
+@register_metric(
+    name="empty_or_whitespace_rate",
+    desc="空输出率:输出为 None、空字符串或纯空白的比例",
+    usage="失败归因诊断。低分说明模型/服务根本没有产出可评内容；分越低越好",
+    categories=[
+        MetricCategory.TEXT_SCORE,
+        MetricCategory.QA_SINGLE, MetricCategory.QA_MULTI,
+        MetricCategory.CHOICE_SINGLE, MetricCategory.CHOICE_MULTI,
+        MetricCategory.PAIRWISE,
+    ],
+    dimension=MetricDimension.DIAGNOSTIC,
+)
+def compute_empty_or_whitespace_rate(preds: List[Any], refs: List[Any], **kwargs) -> Dict[str, Any]:
+    """计算空输出/纯空白输出比例。"""
+    details = [1.0 if p is None or str(p).strip() == "" else 0.0 for p in preds]
+    empty_indices = [idx for idx, score in enumerate(details) if score == 1.0]
+
+    total = len(details)
+    empty_count = len(empty_indices)
+    return {
+        "score": empty_count / total if total else 0.0,
+        "details": details,
+        "artifacts": {
+            "empty_count": empty_count,
+            "total": total,
+            "empty_indices": empty_indices,
+        },
     }
 
 
@@ -264,7 +342,165 @@ def compute_format_compliance_score(preds: List[Any], refs: List[Any], **kwargs)
     }
 
 
+def _extract_json_candidate(text: str) -> Tuple[str, bool]:
+    """Return a JSON candidate and whether it was extracted from surrounding text."""
+    s = text.strip()
+    if not s:
+        return s, False
+
+    fenced = re.search(r"```(?:json|JSON)?\s*([\s\S]*?)```", s)
+    if fenced:
+        return fenced.group(1).strip(), True
+
+    decoder = json.JSONDecoder()
+    for idx, ch in enumerate(s):
+        if ch not in "{[":
+            continue
+        try:
+            _, end = decoder.raw_decode(s[idx:])
+        except json.JSONDecodeError:
+            continue
+        return s[idx:idx + end].strip(), idx != 0 or idx + end != len(s)
+
+    return s, False
+
+
+def _parse_json_prediction(pred: Any, allow_extraction: bool) -> Tuple[bool, Dict[str, Any]]:
+    s = "" if pred is None else str(pred).strip()
+    candidate = s
+    extracted = False
+    if allow_extraction:
+        candidate, extracted = _extract_json_candidate(s)
+
+    art: Dict[str, Any] = {
+        "extracted": extracted,
+        "candidate": candidate[:500],
+    }
+    if not candidate:
+        art["error"] = "empty"
+        return False, art
+
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError as e:
+        art["error"] = e.msg
+        art["error_pos"] = e.pos
+        return False, art
+
+    art["parsed_type"] = type(parsed).__name__
+    return True, art
+
+
+@register_metric(
+    name="json_validity",
+    desc="JSON 合法率:输出是否可被 json.loads 解析",
+    usage=(
+        "结构化输出、tool calling、agent 任务、JSON-only 指令。默认严格要求整段输出是 JSON；"
+        "allow_extraction=True 时允许从 markdown fenced block 或周围文本中提取首个 JSON 对象/数组再解析"
+    ),
+    categories=[
+        MetricCategory.TEXT_SCORE,
+        MetricCategory.QA_SINGLE, MetricCategory.QA_MULTI,
+        MetricCategory.CHOICE_SINGLE, MetricCategory.CHOICE_MULTI,
+    ],
+    dimension=MetricDimension.FORMAT,
+)
+def compute_json_validity(preds: List[Any], refs: List[Any], **kwargs) -> Dict[str, Any]:
+    """逐条检查预测是否是合法 JSON。
+
+    kwargs.allow_extraction:
+      False(默认): str(pred).strip() 必须整体可被 json.loads 解析。
+      True: 可从 ```json fenced block``` 或文本中第一个 JSON object/array 提取后解析。
+    """
+    allow_extraction = bool(kwargs.get("allow_extraction", False))
+    parsed = [_parse_json_prediction(p, allow_extraction=allow_extraction) for p in preds]
+    details = [1.0 if ok else 0.0 for ok, _ in parsed]
+
+    return {
+        "score": sum(details) / len(details) if details else 0.0,
+        "details": details,
+        "artifacts": {
+            "allow_extraction": allow_extraction,
+            "items": [art for _, art in parsed],
+        },
+    }
+
+
 # ============================ 流畅度维度 ============================
+
+_ALLOWED_CONTROL_CHARS = {"\n", "\r", "\t"}
+_STRONG_MOJIBAKE_PATTERNS = [
+    "â€™", "â€œ", "â€\x9d", "â€¦", "â€“", "â€”",
+    "ä¸", "ä½", "å›", "å¤", "æ˜", "æœ",
+    "è¿", "è¯", "çš", "ç”", "ï¼", "ï½",
+]
+
+
+def _garbled_reasons(text: str) -> List[str]:
+    reasons = []
+    if "\ufffd" in text:
+        reasons.append("replacement_char")
+
+    for ch in text:
+        code = ord(ch)
+        category = unicodedata.category(ch)
+        if category == "Cc" and ch not in _ALLOWED_CONTROL_CHARS:
+            reasons.append("control_char")
+            break
+        if category == "Cs":
+            reasons.append("surrogate")
+            break
+        if 0xFDD0 <= code <= 0xFDEF or (code & 0xFFFE) == 0xFFFE:
+            reasons.append("noncharacter")
+            break
+
+    if any(pattern in text for pattern in _STRONG_MOJIBAKE_PATTERNS):
+        reasons.append("mojibake")
+
+    return reasons
+
+
+@register_metric(
+    name="garbled_text_rate",
+    desc="乱码率:输出中明显编码损坏/异常 Unicode 的比例",
+    usage="生成健康度,无需 ref。保守检测乱码和异常字符；分越低越好",
+    categories=[
+        MetricCategory.TEXT_SCORE,
+        MetricCategory.QA_SINGLE, MetricCategory.QA_MULTI,
+        MetricCategory.CHOICE_SINGLE, MetricCategory.CHOICE_MULTI,
+        MetricCategory.PAIRWISE,
+    ],
+    dimension=MetricDimension.FLUENCY,
+)
+def compute_garbled_text_rate(preds: List[Any], refs: List[Any], **kwargs) -> Dict[str, Any]:
+    """保守检测乱码/异常编码。空输出记 0,交给 empty_or_whitespace_rate 归因。"""
+    scores, bad_indices, reasons_by_index = [], [], {}
+
+    for idx, p in enumerate(preds):
+        s = "" if p is None else str(p)
+        if not s.strip():
+            scores.append(0.0)
+            continue
+
+        reasons = _garbled_reasons(s)
+        score = 1.0 if reasons else 0.0
+        scores.append(score)
+        if reasons:
+            bad_indices.append(idx)
+            reasons_by_index[str(idx)] = reasons
+
+    garbled_count = int(sum(scores))
+    return {
+        "score": garbled_count / len(scores) if scores else 0.0,
+        "details": scores,
+        "artifacts": {
+            "garbled_count": garbled_count,
+            "total": len(scores),
+            "garbled_indices": bad_indices,
+            "reasons_by_index": reasons_by_index,
+        },
+    }
+
 
 @register_metric(
     name="repetition_rate",
