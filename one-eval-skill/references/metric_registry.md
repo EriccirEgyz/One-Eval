@@ -25,12 +25,12 @@ logits/跨类别标注。因此需要那类输入的统计指标（AUC-ROC、Pea
 
 | dimension | 衡量什么 | metric |
 |---|---|---|
-| `correctness` | 答案对不对（主结果轴） | exact_match / numerical_match / choice_accuracy / multilabel_f1 / math_verify |
-| `similarity` | 与参考文本的词面相似/重叠（翻译/摘要/长答案） | bleu / rouge_l / chrf / token_f1 |
-| `validity` | 产物本身是否合法可用（≠正确） | code_validity |
-| `fluency` | 生成健康度（退化重复等失败模式） | repetition_rate |
-| `format` | 格式遵循/可抽取性 | extraction_rate / format_compliance_score |
-| `diagnostic` | 纯诊断信号（不直接代表好坏，用于归因） | missing_answer_rate |
+| `correctness` | 答案对不对（主结果轴） | exact_match / numerical_match / choice_accuracy / multilabel_f1 / set_f1 / math_verify |
+| `similarity` | 与参考文本的词面相似/重叠（翻译/摘要/长答案） | bleu / rouge_l / chrf / token_f1 / jaccard_similarity |
+| `validity` | 产物本身是否合法可用（≠正确） | code_validity / sql_parse_validity |
+| `fluency` | 生成健康度（退化重复、乱码/异常编码等失败模式） | repetition_rate / garbled_text_rate |
+| `format` | 格式遵循/可抽取性 | extraction_rate / format_compliance_score / json_validity |
+| `diagnostic` | 纯诊断信号（不直接代表好坏，用于归因） | missing_answer_rate / empty_or_whitespace_rate |
 
 ## 内置 metric 一览
 
@@ -39,19 +39,24 @@ logits/跨类别标注。因此需要那类输入的统计指标（AUC-ROC、Pea
 - `numerical_match` — 数值软匹配（1.0==1，容忍浮点误差，`atol` 可调）
 - `choice_accuracy`（别名 acc / accuracy）— 自动抽取 A/B/C/D 选项准确率
 - `multilabel_f1` — 多标签/多选集合 F1
+- `set_f1` — 开放答案集合 F1，适合列表型 QA、实体抽取、多答案短答
 - `math_verify` — 数学等价性校验（文本匹配 + 符号验证混合）
 
 **similarity**（text_gen.py）
-- `bleu` — sacreBLEU ／ `rouge_l`（别名 rouge）— ROUGE-L F1 ／ `chrf` ／ `token_f1`（别名 f1）
+- `bleu` — sacreBLEU ／ `rouge_l`（别名 rouge）— ROUGE-L F1 ／ `chrf` ／ `token_f1`（别名 f1）／ `jaccard_similarity`（别名 jaccard）— 去重 token 集合重叠，适合关键词覆盖/检索式 QA/事实列表
 
 **validity / fluency**
 - `code_validity`（别名 soft_code_execution）— 代码能否 AST 解析 + 是否定义函数/类。**只验合法性，不代表逻辑正确**；要真 Pass@k 请在受控沙箱自写 custom metric
+- `sql_parse_validity` — SQL 是否能被 parser 解析，适合 Text2SQL/SQL 生成。只验语法/方言可解析性，**不代表执行正确或结果正确**；`dialect` 默认 sqlite，可设 postgres/mysql/bigquery/snowflake 等
 - `repetition_rate` — 退化重复率（1 − distinct-n）。无需 ref，抓“复读机/卡循环”，**分越低越好**（建议作诊断，`n` 可调，默认 3）
+- `garbled_text_rate` — 乱码率。无需 ref，保守检测明显编码损坏；**分越低越好**
 
 **format / diagnostic**
 - `extraction_rate` — 可抽取率（**强烈建议常带上**，诊断是否按格式输出；`extractor` = number/choice/generic）
 - `format_compliance_score` — 答案是否被显式标记出来（boxed/####/答案标记）。+0.5 非空 +0.5 有标记
+- `json_validity` — JSON 合法率；默认要求整段输出可被 `json.loads` 解析，`allow_extraction=True` 时允许从 markdown fenced block 或文本中首个 JSON object/array 提取后解析
 - `missing_answer_rate` — 弃答率（= 1 − 可抽取率）
+- `empty_or_whitespace_rate` — 空输出率：输出为 None、空字符串或纯空白的比例。用于定位服务/生成链路未产出可评内容，**分越低越好**
 
 > **没有确定性指标的两种题型**：纯文本打分（key1_text_score）和偏好对比
 > （key3_q_a_rejected）。后者 runner 只把 better 当 ref 传进来、rejected 取不到，
