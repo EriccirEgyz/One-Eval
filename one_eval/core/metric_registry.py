@@ -42,6 +42,7 @@ class MetricDimension:
     FLUENCY = "fluency"              # 生成健康度（退化重复/复读等失败模式）
     FORMAT = "format"                # 格式遵循/可抽取性（能不能解析出答案）
     DIAGNOSTIC = "diagnostic"        # 纯诊断信号（不直接代表好坏，用于归因）
+    QUALITY = "quality"              # 主观质量评估（由 LLM 或人工评审打分，衡量综合表现）
 
 # 全局注册表缓存
 # key: metric_name, value: MetricMeta

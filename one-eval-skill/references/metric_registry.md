@@ -21,7 +21,7 @@ logits/跨类别标注。因此需要那类输入的统计指标（AUC-ROC、Pea
 能力。同理删掉了按字符长度比算的“推理效率”（奖励不思考直接给答案，是反逻辑的）、
 重复实现的 micro_f1、方向反掉的 ter、以及与 token_f1 重叠的 keyword_recall。
 
-六条真实维度：
+七条真实维度：
 
 | dimension | 衡量什么 | metric |
 |---|---|---|
@@ -31,6 +31,7 @@ logits/跨类别标注。因此需要那类输入的统计指标（AUC-ROC、Pea
 | `fluency` | 生成健康度（退化重复、乱码/异常编码等失败模式） | repetition_rate / garbled_text_rate |
 | `format` | 格式遵循/可抽取性 | extraction_rate / format_compliance_score / json_validity |
 | `diagnostic` | 纯诊断信号（不直接代表好坏，用于归因） | missing_answer_rate / empty_or_whitespace_rate |
+| `quality` | 主观质量评估（由 LLM 评审打分，衡量综合表现） | rubric_score |
 
 ## 内置 metric 一览
 
@@ -58,10 +59,12 @@ logits/跨类别标注。因此需要那类输入的统计指标（AUC-ROC、Pea
 - `missing_answer_rate` — 弃答率（= 1 − 可抽取率）
 - `empty_or_whitespace_rate` — 空输出率：输出为 None、空字符串或纯空白的比例。用于定位服务/生成链路未产出可评内容，**分越低越好**
 
+**quality**（需外部 LLM 作为评审，**非确定性**，有 API 调用成本与延迟）
+- `rubric_score`（别名 judge_score）— 由 Judge LLM 按 rubric 逐条打分（1-5 分制，归一化到 0-1）。无需标准答案，适合开放生成、指令遵循、主观评测（MT-Bench、WildBench、BiGGen-Bench 等）。默认单维度 `overall`；`aspects=["helpfulness","accuracy",...]` 开启多维度，`aspect_weights` 控制各维度权重。**需配置 Judge LLM**（`model_name` / `api_key` / `base_url`），`concurrency` 默认 8
+
 > **没有确定性指标的两种题型**：纯文本打分（key1_text_score）和偏好对比
-> （key3_q_a_rejected）。后者 runner 只把 better 当 ref 传进来、rejected 取不到，
-> 真偏好判断须由调用方（你这个 agent）按 rubric 裁判。退而求其次可用
-> `token_f1` / `rouge_l` 量“与更优答案的词面接近度”，但那是弱代理、别当主分。
+> （key3_q_a_rejected）。这两种场景可使用 `rubric_score` 由 Judge LLM 按 rubric 打分；
+> 退而求其次可用 `token_f1` / `rouge_l` 量”与更优答案的词面接近度”，但那是弱代理、别当主分。
 
 ## 怎么用（evalspec 或 CLI）
 

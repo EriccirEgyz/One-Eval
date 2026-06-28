@@ -87,7 +87,7 @@ class MetricRunner:
             return {"error": "missing_inputs"}
 
         try:
-            preds, refs, align_info = self._load_pred_ref(inputs, bench)
+            preds, refs, questions, align_info = self._load_pred_ref(inputs, bench)
         except Exception as e:
             return {"error": f"load_failed: {str(e)}"}
 
@@ -116,13 +116,17 @@ class MetricRunner:
                     # Prepare kwargs with accumulated results
                     runtime_kwargs = (cfg.get("args", {}) or {}).copy()
                     runtime_kwargs["all_metric_results"] = results["metrics"]
-                    
+                    if "questions" not in runtime_kwargs:
+                        runtime_kwargs["questions"] = questions
+
                     res = self._run_metric_parallel(fn, preds, refs, runtime_kwargs)
                 else:
                     # Prepare kwargs with accumulated results
                     runtime_kwargs = (cfg.get("args", {}) or {}).copy()
                     runtime_kwargs["all_metric_results"] = results["metrics"]
-                    
+                    if "questions" not in runtime_kwargs:
+                        runtime_kwargs["questions"] = questions
+
                     res = fn(preds, refs, **runtime_kwargs)
                     
                 results["metrics"][name] = {
@@ -211,19 +215,26 @@ class MetricRunner:
                 return cand
         return None
 
-    def _load_pred_ref(self, inputs: Dict[str, Any], bench: BenchInfo) -> Tuple[List[Any], List[Any], Dict[str, Any]]:
+    def _load_pred_ref(self, inputs: Dict[str, Any], bench: BenchInfo) -> Tuple[List[Any], List[Any], List[Any], Dict[str, Any]]:
+        """加载预测、参考答案和问题列表。
+
+        Returns:
+            (preds, refs, questions, align_info)
+        """
         mode = inputs.get("mode")
         if mode == "records":
             records_path: Path = inputs["records_path"]
             records = self._load_records(records_path)
-            
+
             meta = getattr(bench, "meta", {}) or {}
             pred_key_hint = meta.get("pred_key")
             ref_key_hint = meta.get("ref_key")
-            
+            question_key_hint = meta.get("question_key")
+
             preds = [self._get_pred(r, pred_key_hint) for r in records]
             refs = [self._get_ref(r, ref_key_hint) for r in records]
-            return preds, refs, {"mode": "records", "path": str(records_path)}
+            questions = [self._get_question(r, question_key_hint) for r in records]
+            return preds, refs, questions, {"mode": "records", "path": str(records_path), "raw_data": records}
 
         pred_path: Path = inputs["pred_path"]
         gt_path: Path = inputs["gt_path"]
@@ -235,6 +246,7 @@ class MetricRunner:
         id_key = meta.get("id_key")
         pred_key_hint = meta.get("pred_key")
         ref_key_hint = meta.get("ref_key")
+        question_key_hint = meta.get("question_key")
 
         if not isinstance(id_key, str) or not id_key.strip():
             id_key = self._guess_id_key(gt_items) or self._guess_id_key(pred_items)
@@ -247,6 +259,7 @@ class MetricRunner:
 
         preds: List[Any] = []
         refs: List[Any] = []
+        questions: List[Any] = []
 
         missing_pred = 0
         extra_pred = 0
@@ -259,12 +272,13 @@ class MetricRunner:
             else:
                 preds.append(self._get_pred(pred_rec, pred_key_hint))
             refs.append(self._get_ref(gt_rec, ref_key_hint))
+            questions.append(self._get_question(gt_rec, question_key_hint))
 
         for sid in pred_index.keys():
             if sid not in gt_index:
                 extra_pred += 1
 
-        return preds, refs, {
+        return preds, refs, questions, {
             "mode": "split",
             "pred_path": str(pred_path),
             "gt_path": str(gt_path),
@@ -343,8 +357,19 @@ class MetricRunner:
     def _get_ref(self, rec: Dict[str, Any], key_hint: Optional[str] = None) -> Any:
         if key_hint and key_hint in rec:
             return rec[key_hint]
-            
+
         keys = ["target", "reference", "ground_truth", "label", "labels", "targets", "answer", "solution", "correct_answer", "gold"]
+        for k in keys:
+            if k in rec:
+                return rec[k]
+        return None
+
+    def _get_question(self, rec: Dict[str, Any], key_hint: Optional[str] = None) -> Any:
+        """从记录中提取问题/输入文本。"""
+        if key_hint and key_hint in rec:
+            return rec[key_hint]
+
+        keys = ["question", "input", "prompt", "query", "text", "context", "instruction"]
         for k in keys:
             if k in rec:
                 return rec[k]
