@@ -27,16 +27,22 @@ class MetricRunner:
         total = len(preds)
         if total == 0:
             return fn(preds, refs, **kwargs)
-            
+
         chunk_size = math.ceil(total / self.max_workers)
+
+        # Extract per-sample lists that need to be sliced in sync
+        questions_full = kwargs.pop("questions", None)
+
         chunks = []
         for i in range(0, total, chunk_size):
-            chunks.append((preds[i:i+chunk_size], refs[i:i+chunk_size]))
-            
+            chunk_kwargs = kwargs.copy()
+            if questions_full is not None:
+                chunk_kwargs["questions"] = questions_full[i:i+chunk_size]
+            chunks.append((preds[i:i+chunk_size], refs[i:i+chunk_size], chunk_kwargs))
+
         results = []
-        # Use map-style execution to maintain order (chunks order matches input order)
         with concurrent.futures.ProcessPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = [executor.submit(fn, p, r, **kwargs) for p, r in chunks]
+            futures = [executor.submit(fn, p, r, **kw) for p, r, kw in chunks]
             # Wait for all and collect results in order
             for f in futures:
                 try:
@@ -87,7 +93,7 @@ class MetricRunner:
             return {"error": "missing_inputs"}
 
         try:
-            preds, refs, questions, align_info = self._load_pred_ref(inputs, bench)
+            preds, refs, questions, align_info = self._load_samples(inputs, bench)
         except Exception as e:
             return {"error": f"load_failed: {str(e)}"}
 
@@ -215,7 +221,7 @@ class MetricRunner:
                 return cand
         return None
 
-    def _load_pred_ref(self, inputs: Dict[str, Any], bench: BenchInfo) -> Tuple[List[Any], List[Any], List[Any], Dict[str, Any]]:
+    def _load_samples(self, inputs: Dict[str, Any], bench: BenchInfo) -> Tuple[List[Any], List[Any], List[Any], Dict[str, Any]]:
         """加载预测、参考答案和问题列表。
 
         Returns:
@@ -272,7 +278,10 @@ class MetricRunner:
             else:
                 preds.append(self._get_pred(pred_rec, pred_key_hint))
             refs.append(self._get_ref(gt_rec, ref_key_hint))
-            questions.append(self._get_question(gt_rec, question_key_hint))
+            q = self._get_question(gt_rec, question_key_hint)
+            if q is None and pred_rec is not None:
+                q = self._get_question(pred_rec, question_key_hint)
+            questions.append(q)
 
         for sid in pred_index.keys():
             if sid not in gt_index:
@@ -369,7 +378,7 @@ class MetricRunner:
         if key_hint and key_hint in rec:
             return rec[key_hint]
 
-        keys = ["question", "input", "prompt", "query", "text", "context", "instruction"]
+        keys = ["question", "input", "prompt", "query", "problem", "text", "context", "instruction"]
         for k in keys:
             if k in rec:
                 return rec[k]

@@ -289,6 +289,12 @@ def compute_rubric_score(preds: List[Any], refs: List[Any], **kwargs) -> Dict[st
     valid_scores = [s for s in details if s is not None]
     avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0.0
 
+    # 记录每条样本实际使用的 question 片段，用于诊断并行分片是否对齐
+    questions_used = []
+    for idx in range(n):
+        q = str(questions[idx]) if questions and idx < len(questions) else "(no question provided)"
+        questions_used.append(q[:80])
+
     result: Dict[str, Any] = {
         "score": round(avg_score, 4),
         "details": details,
@@ -297,6 +303,7 @@ def compute_rubric_score(preds: List[Any], refs: List[Any], **kwargs) -> Dict[st
             "failed_indices": failed_indices,
             "total": n,
             "evaluated": n - len(failed_indices),
+            "questions_used_preview": questions_used,
         },
     }
 
