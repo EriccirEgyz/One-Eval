@@ -36,6 +36,7 @@
             "题目来源于美国数学竞赛（AMC/AIME），难度高",
             "覆盖代数、几何、数论等",
             "问题常包含LaTeX公式，要求模型给出最终答案",
+            "math-500",
             "MATH-500",
             "Hendrycks MATH subset",
             "competition math",
