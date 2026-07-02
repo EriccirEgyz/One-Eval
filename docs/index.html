@@ -9,12 +9,18 @@
         :root {
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --accent: #7c3aed;
             --bg: #ffffff;
             --bg-alt: #f8fafc;
+            --bg-gradient-start: #eef4ff;
             --text: #1e293b;
             --text-secondary: #64748b;
             --border: #e2e8f0;
             --radius: 12px;
+            --shadow-sm: 0 2px 8px rgba(37, 99, 235, 0.04);
+            --shadow-md: 0 4px 20px rgba(37, 99, 235, 0.08);
+            --shadow-lg: 0 8px 32px rgba(37, 99, 235, 0.12);
         }
 
         * {
@@ -27,6 +33,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
             color: var(--text);
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         nav {
@@ -92,9 +99,27 @@
         }
 
         .hero {
-            padding: 140px 2rem 80px;
+            padding: 140px 2rem 60px;
             text-align: center;
-            background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+            background: linear-gradient(180deg, var(--bg-gradient-start) 0%, rgba(248, 250, 252, 0.4) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            width: 120%;
+            height: 150%;
+            background: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
         }
 
         .hero h1 {
@@ -102,10 +127,11 @@
             font-weight: 800;
             margin-bottom: 1rem;
             letter-spacing: -0.02em;
+            animation: fadeInUp 0.6s ease-out;
         }
 
         .hero h1 span {
-            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            background: linear-gradient(135deg, var(--primary), var(--accent));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -116,6 +142,18 @@
             color: var(--text-secondary);
             max-width: 700px;
             margin: 0 auto 2rem;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .hero .badges {
@@ -124,10 +162,16 @@
             gap: 12px;
             flex-wrap: wrap;
             margin-bottom: 2.5rem;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
         }
 
         .hero .badges a img {
             height: 22px;
+            transition: transform 0.2s;
+        }
+
+        .hero .badges a:hover img {
+            transform: scale(1.05);
         }
 
         .hero .cta-group {
@@ -135,6 +179,7 @@
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
+            animation: fadeInUp 0.6s ease-out 0.3s both;
         }
 
         .btn {
@@ -146,99 +191,224 @@
             font-size: 1rem;
             font-weight: 600;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .btn-primary {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: #fff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
         .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+            transform: translateY(-2px);
         }
 
         .btn-secondary {
             background: var(--bg);
             color: var(--text);
             border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-secondary:hover {
             background: var(--bg-alt);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
 
         section {
-            padding: 80px 2rem;
+            padding: 50px 2rem;
             max-width: 1200px;
             margin: 0 auto;
+            position: relative;
         }
 
         section h2 {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 700;
             margin-bottom: 1rem;
             text-align: center;
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        section h2::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 2px;
         }
 
         section .section-desc {
             text-align: center;
             color: var(--text-secondary);
             max-width: 600px;
-            margin: 0 auto 3rem;
+            margin: 1rem auto 2rem;
+            font-size: 1.05rem;
+            line-height: 1.7;
+        }
+
+        .section-full {
+            max-width: none;
+            padding: 50px 2rem;
+        }
+
+        .section-full > *:not(.features):not(.framework-img) {
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .bg-alt {
+            background: var(--bg-alt);
+            position: relative;
+        }
+
+        .bg-alt::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, var(--bg-alt) 100%);
+            transform: translateY(-100%);
+        }
+
+        .bg-alt::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to top, rgba(255, 255, 255, 0) 0%, var(--bg-alt) 100%);
+            transform: translateY(100%);
+        }
+
+        .bg-gradient {
+            background: linear-gradient(180deg, var(--bg) 0%, var(--bg-alt) 50%, var(--bg-alt) 100%);
+            position: relative;
+        }
+
+        .bg-gradient-reverse {
+            background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 50%, var(--bg) 100%);
+            position: relative;
         }
 
         .framework-img {
             text-align: center;
-            margin: 3rem 0;
+            margin: 1.5rem auto 0;
+            max-width: 1200px;
+            animation: fadeInUp 0.8s ease-out;
         }
 
         .framework-img img {
             max-width: 100%;
             border-radius: var(--radius);
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .framework-img img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 12px 48px rgba(37, 99, 235, 0.15);
         }
 
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .feature-card {
-            padding: 28px;
+            padding: 32px;
+            background: var(--bg);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            transition: box-shadow 0.2s;
+            transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .feature-card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
         }
 
         .feature-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 8px;
+            font-size: 1.15rem;
+            margin-bottom: 10px;
+            color: var(--text);
+            font-weight: 650;
         }
 
         .feature-card p {
             color: var(--text-secondary);
             font-size: 0.95rem;
+            line-height: 1.7;
         }
 
         .abstract-section {
-            background: var(--bg-alt);
+            background: var(--bg);
+            border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 3rem;
             margin: 0 auto;
             max-width: 900px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .abstract-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
         }
 
         .abstract-section h2 {
             text-align: left;
             margin-bottom: 0.5rem;
+            transform: none;
+            left: 0;
+        }
+
+        .abstract-section h2::after {
+            display: none;
         }
 
         .abstract-section .paper-meta {
@@ -273,6 +443,20 @@
             color: var(--text-secondary);
             font-size: 0.85rem;
             border-top: 1px solid var(--border);
+            background: var(--bg-alt);
+            position: relative;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 2px;
         }
 
         @media (max-width: 768px) {
@@ -287,6 +471,29 @@
             nav .logo span {
                 display: none;
             }
+
+            section, .section-full {
+                padding: 36px 1.5rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .abstract-section {
+                padding: 2rem 1.5rem;
+            }
+        }
+
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -327,18 +534,18 @@
         </div>
     </section>
 
-    <section>
+    <section class="section-full bg-gradient scroll-reveal">
         <h2>Quick Start with Claude Code</h2>
         <p class="section-desc">Zero setup. Just paste this to <strong>Claude Code</strong> (or Codex, or any coding agent):</p>
         <div style="max-width: 700px; margin: 0 auto;">
-            <div style="background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.9rem; position: relative;">
-                <code>Use the one-eval-skill in https://github.com/OpenDCAI/One-Eval to get us started on evaluating my model.</code>
-                <button onclick="navigator.clipboard.writeText('Use the one-eval-skill in https://github.com/OpenDCAI/One-Eval to get us started on evaluating my model.')" style="position: absolute; top: 0.75rem; right: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem;" title="Copy to clipboard">&#x1F4CB;</button>
+            <div style="background: var(--bg); border: 2px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.9rem; position: relative; box-shadow: var(--shadow-md); transition: all 0.3s ease;">
+                <code style="color: var(--text);">Use the one-eval-skill in https://github.com/OpenDCAI/One-Eval to get us started on evaluating my model.</code>
+                <button onclick="navigator.clipboard.writeText('Use the one-eval-skill in https://github.com/OpenDCAI/One-Eval to get us started on evaluating my model.'); this.textContent='✓ Copied!'; setTimeout(() => this.textContent='📋', 2000)" style="position: absolute; top: 1rem; right: 1rem; background: var(--primary); color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s ease; font-weight: 600;" onmouseover="this.style.background='var(--primary-dark)'" onmouseout="this.style.background='var(--primary)'" title="Copy to clipboard">📋</button>
             </div>
         </div>
     </section>
 
-    <section>
+    <section class="section-full bg-alt scroll-reveal">
         <h2>Architecture</h2>
         <p class="section-desc">One-Eval orchestrates evaluation through a multi-stage agentic pipeline built on DataFlow and LangGraph.</p>
         <div class="framework-img">
@@ -346,7 +553,7 @@
         </div>
     </section>
 
-    <section>
+    <section class="section-full bg-gradient-reverse scroll-reveal">
         <h2>Key Features</h2>
         <p class="section-desc">NL2Eval: From natural language requirements to complete evaluation reports, fully automated.</p>
         <div class="features">
@@ -377,7 +584,7 @@
         </div>
     </section>
 
-    <section>
+    <section class="section-full bg-alt scroll-reveal">
         <div class="abstract-section">
             <h2>Paper</h2>
             <div class="paper-meta">
@@ -395,5 +602,17 @@
     <footer>
         <p>&copy; 2025 OpenDCAI. Licensed under Apache 2.0.</p>
     </footer>
+
+    <script>
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+    </script>
 </body>
 </html>
