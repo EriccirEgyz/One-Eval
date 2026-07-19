@@ -630,6 +630,10 @@ def build_overview(overview: dict, lb: dict) -> str:
         if b["external"]:
             sc = '<div class="sc" style="font-size:18px;color:var(--accent)">外部待执行</div>'
             ex = "external_repo（需沙箱回填）"
+        elif b.get("mode") == "external_repo":
+            sc = f'<div class="sc">{fmt_score(b["score"])}</div>'
+            t = b.get("total") or b.get("dataflow_total") or "?"
+            ex = f'{t} 样本 ｜ {_esc(b.get("metric") or b.get("dataflow_metric") or "")} ｜ external_repo'
         else:
             sc = f'<div class="sc">{fmt_score(b["score"])}</div>'
             source = b.get("score_source") or "—"
@@ -720,6 +724,31 @@ def build_details(overview: dict, paths: dict | None = None) -> str:
         if b["external"]:
             body = ('<div class="row">该 bench 为 <b>external_repo</b> 类型，需在外部仓库/'
                     '沙箱执行后回填分数（详见 references/external_bench.md）。</div>')
+        elif b.get("mode") == "external_repo":
+            el = f'{b["elapsed_sec"]:.1f}s' if isinstance(b.get("elapsed_sec"), (int, float)) else "—"
+            t = b.get("total") or b.get("dataflow_total") or "?"
+            body = (
+                f'<div class="row"><span><b>主分数</b> {fmt_score(b["score"])}</span>'
+                f'<span><b>样本数</b> {t}</span>'
+                f'<span><b>主指标</b> {_esc(b.get("metric") or b.get("dataflow_metric") or "—")}</span>'
+                f'<span><b>模式</b> external_repo</span>'
+                f'<span><b>耗时</b> {el}</span></div>')
+            if b.get("dataflow_score") is not None:
+                body += (
+                    f'<div class="row"><span><b>DataFlow score</b> {fmt_score(b.get("dataflow_score"))}</span>'
+                    f'<span><b>DataFlow metric</b> {_esc(b.get("dataflow_metric") or "—")}</span>'
+                    f'<span><b>DataFlow total</b> {b.get("dataflow_total") or "?"}</span></div>'
+                )
+            if b.get("warning"):
+                body += f'<div class="callout" style="border-left-color:var(--star)">{_esc(b["warning"])}</div>'
+            if b.get("detail_path"):
+                body += (
+                    f'<div class="row"><b>逐样本看板</b> '
+                    f'<a href="#bench" data-sample-bench="{_esc(b.get("bench_name") or "")}" '
+                    f'data-report-bench-name="{_esc(b.get("bench_name") or "")}">'
+                    f'打开该 bench 明细页</a></div>'
+                )
+                body += f'<div class="row"><b>Detail path</b> <span class="path">{_esc(b["detail_path"])}</span></div>'
         else:
             el = f'{b["elapsed_sec"]:.1f}s' if isinstance(b.get("elapsed_sec"), (int, float)) else "—"
             body = (

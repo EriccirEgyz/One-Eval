@@ -686,168 +686,6 @@
       }
     },
     {
-      "bench_name": "gaia",
-      "bench_table_exist": true,
-      "bench_source_url": "https://huggingface.co/datasets/gaia-benchmark/GAIA",
-      "bench_dataflow_eval_type": "key2_qa",
-      "bench_prompt_template": null,
-      "bench_keys": [
-        "task_id",
-        "Question",
-        "Level",
-        "Final answer",
-        "file_name",
-        "file_path",
-        "Annotator Metadata"
-      ],
-      "meta": {
-        "bench_name": "gaia",
-        "source": "bench_item_list",
-        "aliases": [
-          "gaia",
-          "GAIA"
-        ],
-        "category": "Agents & Tools",
-        "tags": [
-          "agents & tools use",
-          "agents & tools"
-        ],
-        "description": "Presents real-world questions requiring reasoning, multi-modality handling, and tool-use proficiency to evaluate general AI assistants.",
-        "hf_meta": {
-          "bench_name": "gaia",
-          "hf_repo": "gaia-benchmark/GAIA",
-          "card_text": "Presents real-world questions requiring reasoning, multi-modality handling, and tool-use proficiency to evaluate general AI assistants.",
-          "tags": [
-            "agents & tools use"
-          ],
-          "exists_on_hf": true
-        },
-        "structure": {
-          "repo_id": "gaia-benchmark/GAIA",
-          "revision": null,
-          "subsets": [
-            {
-              "subset": "2023_all",
-              "splits": [
-                {
-                  "name": "test",
-                  "num_examples": null
-                },
-                {
-                  "name": "validation",
-                  "num_examples": null
-                }
-              ],
-              "features": null
-            },
-            {
-              "subset": "2023_level1",
-              "splits": [
-                {
-                  "name": "test",
-                  "num_examples": null
-                },
-                {
-                  "name": "validation",
-                  "num_examples": null
-                }
-              ],
-              "features": null
-            },
-            {
-              "subset": "2023_level2",
-              "splits": [
-                {
-                  "name": "test",
-                  "num_examples": null
-                },
-                {
-                  "name": "validation",
-                  "num_examples": null
-                }
-              ],
-              "features": null
-            },
-            {
-              "subset": "2023_level3",
-              "splits": [
-                {
-                  "name": "test",
-                  "num_examples": null
-                },
-                {
-                  "name": "validation",
-                  "num_examples": null
-                }
-              ],
-              "features": null
-            }
-          ],
-          "ok": true,
-          "error": null
-        },
-        "download_config": {
-          "config": "2023_all",
-          "split": "test",
-          "reason": "选择 `2023_all` 作为主 subset 因为它包含全部数据，而且选择 `test` split 是因为它符合测试优先级规则。"
-        },
-        "key_mapping": {
-          "input_question_key": "Question",
-          "input_target_key": "Final answer",
-          "input_context_key": null
-        },
-        "key_mapping_reason": "提供的字段 'Question' 和 'Final answer' 显示该数据集是一个生成式任务，有单个参考答案，因此匹配 key2_qa 类型。没有明显的 context 字段。",
-        "description_zh": "现实问题，需要推理、多模态和工具使用",
-        "radar_dimensions": [
-          "instruction",
-          "reasoning"
-        ],
-        "evaluation": {
-          "score_source": "metric_stage",
-          "official_metric": "exact_match",
-          "primary_metric": "exact_match",
-          "denominator": "total",
-          "prediction_mode": "generation",
-          "parser": {
-            "type": "no_parse"
-          },
-          "failure_policy": {
-            "parse_failed": "score_zero",
-            "empty_output": "score_zero",
-            "invalid_reference": "exclude"
-          }
-        },
-        "prompt": {
-          "source": "gallery",
-          "template_id": "gaia_contract_v1",
-          "system_prompt": "",
-          "user_template": "{Question}\nAnswer:",
-          "output_format": {
-            "type": "freeform_text"
-          },
-          "few_shot": {
-            "enabled": false,
-            "num_shots": 0,
-            "source_split": null
-          },
-          "generation": {
-            "temperature": 0.0,
-            "top_p": 1.0,
-            "max_tokens": 1024,
-            "stop": []
-          }
-        },
-        "readiness": {
-          "status": "contract_inferred",
-          "smoke_passed": false,
-          "golden_cases": null,
-          "known_limitations": [
-            "No direct lm-eval YAML match was found; contract fields are inferred from the requested bench list."
-          ]
-        }
-      }
-    },
-    {
       "bench_name": "scigym",
       "bench_table_exist": true,
       "bench_source_url": "https://huggingface.co/datasets/h4duan/scigym-sbml",
@@ -17832,6 +17670,938 @@
       },
       "bench_dataflow_eval_type": "key3_q_a_rejected",
       "bench_source_url": null
+    },
+    {
+      "bench_name": "mmbench",
+      "bench_table_exist": true,
+      "bench_source_url": "https://mmbench.opencompass.org.cn",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "mmbench",
+        "source": "external_repo",
+        "aliases": [
+          "mmbench",
+          "MMBench"
+        ],
+        "category": "Multimodal",
+        "tags": [
+          "multimodal",
+          "vision-language",
+          "perception"
+        ],
+        "description": "MMBench: A multi-modal benchmark for evaluating vision-language models on fine-grained abilities across 20 dimensions.",
+        "hf_meta": {
+          "bench_name": "mmbench",
+          "hf_repo": "lmms-lab/MMBench",
+          "card_text": "MMBench evaluates vision-language models on perception and reasoning capabilities.",
+          "tags": [
+            "multimodal",
+            "vision-language"
+          ],
+          "exists_on_hf": true
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/open-compass/VLMEvalKit",
+          "ref": "v0.2",
+          "license": "Apache-2.0",
+          "env_requires": [
+            "python>=3.10",
+            "torch"
+          ],
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}"
+          ],
+          "model_interface": "api",
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run.py",
+              "--data",
+              "MMBench_DEV_EN",
+              "--model",
+              "GPT4o",
+              "--mode",
+              "all",
+              "--work-dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "GPT4o/*.csv",
+            "format": "csv",
+            "score_path": "accuracy",
+            "scale": "ratio",
+            "metric_name": "accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "MMBench: Is Your Multi-modal Model an All-around Player?",
+            "ref_url": "https://arxiv.org/abs/2307.06281",
+            "data_version": "MMBench_DEV_EN",
+            "verified_date": "2026-07-11"
+          },
+          "notes": "使用 VLMEvalKit（MMBench 官方评测工具）。需要设置 OPENAI_API_KEY 和 OPENAI_API_BASE 环境变量。"
+        }
+      }
+    },
+    {
+      "bench_name": "mathvista",
+      "bench_table_exist": true,
+      "bench_source_url": "https://mathvista.github.io/",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "mathvista",
+        "source": "external_repo",
+        "aliases": [
+          "mathvista",
+          "MathVista"
+        ],
+        "category": "Multimodal",
+        "tags": [
+          "multimodal",
+          "vision-language",
+          "math",
+          "reasoning"
+        ],
+        "description": "MathVista: Evaluating mathematical reasoning in visual contexts across diverse domains and grade levels.",
+        "download_config": {
+          "config": null,
+          "split": "testmini",
+          "reason": "testmini split (1000 samples) is recommended for fast evaluation. test split requires server submission."
+        },
+        "hf_meta": {
+          "bench_name": "mathvista",
+          "hf_repo": "AI4Math/MathVista",
+          "card_text": "MathVista evaluates mathematical reasoning combined with visual understanding.",
+          "tags": [
+            "multimodal",
+            "math",
+            "reasoning"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "testmini",
+              "num_examples": 1000
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/lupantech/MathVista",
+          "ref": "53d525874bdde205128e6b160b7357a88277d479",
+          "license": "MIT",
+          "env_requires": [
+            "python>=3.9"
+          ],
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}",
+            "{{uv}} pip install openai datasets pillow Levenshtein rich opencv-python-headless word2number tqdm pandas"
+          ],
+          "model_interface": "api",
+          "run": {
+            "work_dir": "{{repo_dir}}/evaluation",
+            "argv": [
+              "{{python}}",
+              "run_mathvista_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "average.accuracy",
+            "scale": "ratio",
+            "metric_name": "accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "MathVista: Evaluating Mathematical Reasoning of Foundation Models in Visual Contexts",
+            "ref_url": "https://arxiv.org/abs/2310.02255",
+            "data_version": "testmini",
+            "verified_date": "2026-07-11"
+          },
+          "notes": "使用 MathVista 官方评测代码。需要设置 OPENAI_API_KEY 和 OPENAI_API_BASE 环境变量。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/mathvista/run_mathvista_oneeval.py",
+              "dest": "evaluation/run_mathvista_oneeval.py"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "bench_name": "mmmu",
+      "bench_table_exist": true,
+      "bench_source_url": "https://mmmu-benchmark.github.io/",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "mmmu",
+        "source": "external_repo",
+        "aliases": [
+          "mmmu",
+          "MMMU"
+        ],
+        "category": "Multimodal",
+        "tags": [
+          "multimodal",
+          "vision-language",
+          "reasoning",
+          "knowledge"
+        ],
+        "description": "MMMU: A Massive Multi-discipline Multimodal Understanding and Reasoning Benchmark for Expert AGI.",
+        "download_config": {
+          "config": null,
+          "split": "validation",
+          "reason": "validation split (900 samples) is recommended for faster evaluation. test split (10500 samples) is available but takes longer."
+        },
+        "hf_meta": {
+          "bench_name": "mmmu",
+          "hf_repo": "MMMU/MMMU",
+          "card_text": "MMMU evaluates multimodal understanding and reasoning across 30 subjects and 6 domains.",
+          "tags": [
+            "multimodal",
+            "reasoning",
+            "knowledge"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "validation",
+              "num_examples": 900
+            },
+            {
+              "name": "test",
+              "num_examples": 10500
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/MMMU-Benchmark/MMMU",
+          "ref": "bc168a9119d986d7cdf1e07b1eeb96ed3e8f92fa",
+          "license": "Apache-2.0",
+          "env_requires": [
+            "python>=3.9"
+          ],
+          "setup": [
+            "{{uv}} pip install datasets openai pillow tqdm tabulate"
+          ],
+          "model_interface": "api",
+          "run": {
+            "work_dir": "{{repo_dir}}/mmmu",
+            "argv": [
+              "{{python}}",
+              "run_mmmu_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "average.accuracy",
+            "scale": "ratio",
+            "metric_name": "accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "MMMU: A Massive Multi-discipline Multimodal Understanding and Reasoning Benchmark for Expert AGI",
+            "ref_url": "https://arxiv.org/abs/2311.16502",
+            "data_version": "validation",
+            "verified_date": "2026-07-12"
+          },
+          "notes": "使用 MMMU 官方 main_parse_and_eval.py 进行答案解析和评分。支持 validation 和 test split。需要设置 OPENAI_API_KEY 和 OPENAI_API_BASE 环境变量。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/mmmu/run_mmmu_oneeval.py",
+              "dest": "mmmu/run_mmmu_oneeval.py"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "bench_name": "mmmu_pro",
+      "bench_table_exist": true,
+      "bench_source_url": "https://mmmu-benchmark.github.io/",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "mmmu_pro",
+        "source": "external_repo",
+        "aliases": [
+          "mmmu_pro",
+          "MMMU-Pro",
+          "mmmu-pro"
+        ],
+        "category": "Multimodal",
+        "tags": [
+          "multimodal",
+          "vision-language",
+          "reasoning",
+          "knowledge"
+        ],
+        "description": "MMMU-Pro: A more robust multi-discipline multimodal benchmark with augmented candidate options and vision-only input setting.",
+        "download_config": {
+          "config": "vision",
+          "split": "test",
+          "reason": "vision config is most commonly reported. standard (10 options) and standard (4 options) also available."
+        },
+        "hf_meta": {
+          "bench_name": "mmmu_pro",
+          "hf_repo": "MMMU/MMMU_Pro",
+          "card_text": "MMMU-Pro evaluates multimodal understanding with augmented options across 30 subjects and 6 domains.",
+          "tags": [
+            "multimodal",
+            "reasoning",
+            "knowledge"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "test",
+              "num_examples": 1730
+            }
+          ],
+          "configs": [
+            "vision",
+            "standard (10 options)",
+            "standard (4 options)"
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/MMMU-Benchmark/MMMU",
+          "ref": "bc168a9119d986d7cdf1e07b1eeb96ed3e8f92fa",
+          "license": "Apache-2.0",
+          "env_requires": [
+            "python>=3.9"
+          ],
+          "setup": [
+            "{{uv}} pip install datasets openai pillow tqdm pyyaml"
+          ],
+          "model_interface": "api",
+          "run": {
+            "work_dir": "{{repo_dir}}/mmmu-pro",
+            "argv": [
+              "{{python}}",
+              "run_mmmu_pro_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "average.accuracy",
+            "scale": "ratio",
+            "metric_name": "accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "MMMU-Pro: A More Robust Multi-discipline Multimodal Understanding Benchmark",
+            "ref_url": "https://arxiv.org/abs/2409.02813",
+            "data_version": "test (vision)",
+            "verified_date": "2026-07-12"
+          },
+          "notes": "MMMU-Pro bridge 脚本自行完成推理和评分。通过 ONEEVAL_SPLIT 环境变量选择 config（vision/standard (10 options)/standard (4 options)）。需要设置 OPENAI_API_KEY 和 OPENAI_API_BASE 环境变量。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/mmmu_pro/run_mmmu_pro_oneeval.py",
+              "dest": "mmmu-pro/run_mmmu_pro_oneeval.py"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "bench_name": "livecodebench",
+      "bench_table_exist": true,
+      "bench_source_url": "https://livecodebench.github.io/",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "livecodebench",
+        "source": "external_repo",
+        "aliases": [
+          "livecodebench",
+          "LiveCodeBench",
+          "LCB"
+        ],
+        "category": "Code",
+        "tags": [
+          "code-generation",
+          "execution",
+          "pass@k"
+        ],
+        "description": "LiveCodeBench: Holistic and contamination-free evaluation of LLMs for code generation via real execution of test cases.",
+        "description_zh": "LiveCodeBench: 通过真实执行测试用例对代码生成大模型进行全面、无污染的评测。",
+        "hf_meta": {
+          "bench_name": "livecodebench",
+          "hf_repo": "livecodebench/code_generation",
+          "card_text": "LiveCodeBench evaluates code generation capabilities via contamination-free problems with real execution.",
+          "tags": [
+            "code-generation",
+            "execution"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "test",
+              "num_examples": "dynamic (continuously growing)"
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/LiveCodeBench/LiveCodeBench",
+          "ref": "28fef95ea8c9f7a547c8329f2cd3d32b92c1fa24",
+          "license": "MIT",
+          "env_requires": {
+            "python": ">=3.10",
+            "gpu": false,
+            "sandbox": "docker",
+            "system_deps": [
+              "docker"
+            ]
+          },
+          "dockerfile": "one_eval/patches/livecodebench/Dockerfile",
+          "docker_image": "oneeval/livecodebench:latest",
+          "docker_skip_setup": true,
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}",
+            "{{uv}} pip install 'datasets<3.0'"
+          ],
+          "model_interface": {
+            "type": "api",
+            "how": "读 OPENAI_API_KEY (映射为 OPENAI_KEY) + OPENAI_API_BASE 环境变量，走 OpenAI 兼容接口"
+          },
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run_livecodebench_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "pass@1",
+            "scale": "ratio",
+            "metric_name": "pass@1"
+          },
+          "data_alignment": {
+            "ref_paper": "LiveCodeBench: Holistic and Contamination Free Evaluation of Large Language Models for Code",
+            "ref_url": "https://arxiv.org/abs/2403.07974",
+            "data_version": "release_latest (持续更新，取评测时最新快照)",
+            "verified_date": "2026-07-12"
+          },
+          "notes": "代码在 Docker 容器中执行（sandbox=docker），隔离生成代码的执行环境。需要宿主机安装 Docker。pass@1 默认用 n=10 temperature=0.2 计算。LiveCodeBench 使用 OPENAI_KEY 而非 OPENAI_API_KEY，patch 脚本已做映射。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/livecodebench/run_livecodebench_oneeval.py",
+              "dest": "run_livecodebench_oneeval.py"
+            }
+          ]
+        },
+        "download_config": {
+          "config": null,
+          "split": "test",
+          "reason": "LiveCodeBench 通过 release_version 控制数据版本（持续新增题目）。默认 release_latest 取最新快照。可通过 ONEEVAL_LCB_RELEASE 环境变量指定固定版本。"
+        }
+      }
+    },
+    {
+      "bench_name": "humanevalplus",
+      "bench_table_exist": true,
+      "bench_source_url": "https://github.com/evalplus/evalplus",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "humanevalplus",
+        "source": "external_repo",
+        "aliases": [
+          "humanevalplus",
+          "HumanEval+",
+          "humaneval+",
+          "humaneval_plus",
+          "evalplus"
+        ],
+        "category": "Code",
+        "tags": [
+          "code-generation",
+          "execution",
+          "pass@k",
+          "python"
+        ],
+        "description": "HumanEval+: Rigorous evaluation of LLM-synthesized code with 80x more tests than the original HumanEval benchmark.",
+        "description_zh": "HumanEval+: 通过比原始 HumanEval 多 80 倍的测试用例对 LLM 生成代码进行严格评测。",
+        "hf_meta": {
+          "bench_name": "humanevalplus",
+          "hf_repo": "evalplus/humanevalplus",
+          "card_text": "HumanEval+ evaluates code generation with 80x augmented test cases for rigorous functional correctness testing.",
+          "tags": [
+            "code-generation",
+            "execution"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "test",
+              "num_examples": 164
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/evalplus/evalplus",
+          "ref": "v0.3.1",
+          "license": "Apache-2.0",
+          "env_requires": {
+            "python": ">=3.10",
+            "gpu": false,
+            "sandbox": "docker",
+            "system_deps": [
+              "docker"
+            ]
+          },
+          "dockerfile": "one_eval/patches/humanevalplus/Dockerfile",
+          "docker_image": "oneeval/humanevalplus:latest",
+          "docker_skip_setup": true,
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}",
+            "{{uv}} pip install openai httpx"
+          ],
+          "model_interface": {
+            "type": "api",
+            "how": "读 OPENAI_API_KEY + OPENAI_API_BASE 环境变量，走 OpenAI 兼容接口（--backend openai --base-url）"
+          },
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run_humanevalplus_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "pass@1",
+            "scale": "ratio",
+            "metric_name": "pass@1"
+          },
+          "data_alignment": {
+            "ref_paper": "Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation",
+            "ref_url": "https://arxiv.org/abs/2305.01210",
+            "data_version": "HumanEval+ v0.3.x (164 problems, 80x augmented tests)",
+            "verified_date": "2026-07-13"
+          },
+          "notes": "代码在 Docker 容器中执行（sandbox=docker），隔离生成代码的执行环境。需要宿主机安装 Docker。evalplus 同时报告 base HumanEval 和 HumanEval+ 的 pass@k。默认用 n=10 temperature=0.2 计算 pass@1。也可通过 --dataset mbpp 切换到 MBPP+ 评测。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/humanevalplus/run_humanevalplus_oneeval.py",
+              "dest": "run_humanevalplus_oneeval.py"
+            }
+          ]
+        },
+        "download_config": {
+          "config": null,
+          "split": "test",
+          "reason": "evalplus 内置数据加载（从 HuggingFace 自动下载 164 道 HumanEval+ 题目）。无需手动下载。"
+        }
+      }
+    },
+    {
+      "bench_name": "mbppplus",
+      "bench_table_exist": true,
+      "bench_source_url": "https://github.com/evalplus/evalplus",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "mbppplus",
+        "source": "external_repo",
+        "aliases": [
+          "mbppplus",
+          "MBPP+",
+          "mbpp+",
+          "mbpp_plus"
+        ],
+        "category": "Code",
+        "tags": [
+          "code-generation",
+          "execution",
+          "pass@k",
+          "python"
+        ],
+        "description": "MBPP+: Rigorous evaluation of LLM-synthesized code with 35x more tests than the original MBPP benchmark (399 problems).",
+        "description_zh": "MBPP+: 通过比原始 MBPP 多 35 倍的测试用例对 LLM 生成代码进行严格评测（399 题）。",
+        "hf_meta": {
+          "bench_name": "mbppplus",
+          "hf_repo": "evalplus/mbppplus",
+          "card_text": "MBPP+ evaluates code generation with 35x augmented test cases for rigorous functional correctness testing.",
+          "tags": [
+            "code-generation",
+            "execution"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "test",
+              "num_examples": 399
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/evalplus/evalplus",
+          "ref": "v0.3.1",
+          "license": "Apache-2.0",
+          "env_requires": {
+            "python": ">=3.10",
+            "gpu": false,
+            "sandbox": "docker",
+            "system_deps": [
+              "docker"
+            ]
+          },
+          "dockerfile": "one_eval/patches/mbppplus/Dockerfile",
+          "docker_image": "oneeval/mbppplus:latest",
+          "docker_skip_setup": true,
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}",
+            "{{uv}} pip install openai httpx"
+          ],
+          "model_interface": {
+            "type": "api",
+            "how": "读 OPENAI_API_KEY + OPENAI_API_BASE 环境变量，走 OpenAI 兼容接口（--backend openai --base-url）"
+          },
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run_humanevalplus_oneeval.py",
+              "--dataset",
+              "mbpp",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "pass@1",
+            "scale": "ratio",
+            "metric_name": "pass@1"
+          },
+          "data_alignment": {
+            "ref_paper": "Is Your Code Generated by ChatGPT Really Correct? Rigorous Evaluation of Large Language Models for Code Generation",
+            "ref_url": "https://arxiv.org/abs/2305.01210",
+            "data_version": "MBPP+ v0.3.x (399 problems, 35x augmented tests)",
+            "verified_date": "2026-07-13"
+          },
+          "notes": "与 HumanEval+ 共用同一 bridge 脚本（run_humanevalplus_oneeval.py --dataset mbpp）。代码在 Docker 容器中执行（sandbox=docker）。evalplus 同时报告 base MBPP 和 MBPP+ 的 pass@k。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/humanevalplus/run_humanevalplus_oneeval.py",
+              "dest": "run_humanevalplus_oneeval.py"
+            }
+          ]
+        },
+        "download_config": {
+          "config": null,
+          "split": "test",
+          "reason": "evalplus 内置数据加载（从 HuggingFace 自动下载 399 道 MBPP+ 题目）。无需手动下载。"
+        }
+      }
+    },
+    {
+      "bench_name": "bfcl",
+      "bench_table_exist": true,
+      "bench_source_url": "https://gorilla.cs.berkeley.edu/leaderboard",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "bfcl",
+        "source": "external_repo",
+        "aliases": [
+          "bfcl",
+          "BFCL",
+          "berkeley-function-calling-leaderboard",
+          "gorilla-function-calling"
+        ],
+        "category": "Agents & Tools",
+        "tags": [
+          "function-calling",
+          "tool-use",
+          "api",
+          "ast-evaluation"
+        ],
+        "description": "Berkeley Function Calling Leaderboard (BFCL): Comprehensive evaluation of LLM function/tool calling across simple, multiple, parallel, and multi-turn scenarios with AST and execution-based verification.",
+        "description_zh": "Berkeley Function Calling Leaderboard (BFCL): 通过 AST 匹配和执行验证，全面评测大模型在简单、多函数、并行调用及多轮对话场景下的函数/工具调用能力。",
+        "hf_meta": {
+          "bench_name": "bfcl",
+          "hf_repo": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+          "card_text": "BFCL evaluates LLM function calling across simple/multiple/parallel/multi-turn scenarios using AST matching and execution-based verification.",
+          "tags": [
+            "function-calling",
+            "tool-use"
+          ],
+          "exists_on_hf": true,
+          "splits": [
+            {
+              "name": "test",
+              "num_examples": 4441
+            }
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/ShishirPatil/gorilla",
+          "ref": "v1.3",
+          "subdir": "berkeley-function-call-leaderboard",
+          "license": "Apache-2.0",
+          "env_requires": {
+            "python": ">=3.10",
+            "gpu": false,
+            "sandbox": "docker",
+            "system_deps": [
+              "docker"
+            ]
+          },
+          "dockerfile": "one_eval/patches/bfcl/Dockerfile",
+          "docker_image": "oneeval/bfcl:latest",
+          "docker_skip_setup": false,
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}/berkeley-function-call-leaderboard",
+            "{{uv}} pip install soundfile"
+          ],
+          "model_interface": {
+            "type": "api",
+            "how": "读 OPENAI_API_KEY + OPENAI_API_BASE 环境变量，走 OpenAI 兼容接口。BFCL 通过 handler 系统路由到 OpenAI 兼容后端。"
+          },
+          "run": {
+            "work_dir": "{{repo_dir}}/berkeley-function-call-leaderboard",
+            "argv": [
+              "{{python}}",
+              "run_bfcl_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "overall_accuracy",
+            "scale": "ratio",
+            "metric_name": "overall_accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "Berkeley Function Calling Leaderboard",
+            "ref_url": "https://gorilla.cs.berkeley.edu/blogs/8_berkeley_function_calling_leaderboard.html",
+            "data_version": "BFCL v3 (4441 entries: 1390 non-live AST + 2251 live + 800 multi-turn), pinned to gorilla repo tag v1.3",
+            "verified_date": "2026-07-13"
+          },
+          "notes": "默认跑 AST + Live 类别（不含 exec 和 multi_turn）。exec 类需要 Docker 沙箱执行生成的函数调用；multi_turn 需要更复杂的状态管理。可通过 BFCL_TEST_CATEGORIES 环境变量选择评测子集（preset: ast/exec/live/multi_turn/all/default）。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/bfcl/run_bfcl_oneeval.py",
+              "dest": "run_bfcl_oneeval.py"
+            }
+          ]
+        },
+        "download_config": {
+          "config": null,
+          "split": "test",
+          "reason": "BFCL 数据集由评测仓库内部从 HuggingFace 自动下载（gorilla-llm/Berkeley-Function-Calling-Leaderboard）。无需手动下载。"
+        }
+      }
+    },
+    {
+      "bench_name": "tau2_bench",
+      "bench_table_exist": false,
+      "bench_source_url": "https://github.com/sierra-research/tau2-bench",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "tau2_bench",
+        "source": "external_repo",
+        "aliases": [
+          "tau2_bench",
+          "tau2-bench",
+          "τ2-bench",
+          "tau-bench"
+        ],
+        "category": "Agents & Tools",
+        "tags": [
+          "agents & tools use",
+          "tool-calling",
+          "multi-turn",
+          "customer-service"
+        ],
+        "description": "τ2-Bench: Evaluates LLM agents on multi-turn tool-use tasks in simulated customer service environments (airline, retail).",
+        "description_zh": "τ2-Bench：在模拟客服环境（航空、零售）中评测大模型 Agent 的多轮工具调用能力。",
+        "hf_meta": {
+          "bench_name": "tau2_bench",
+          "hf_repo": null,
+          "card_text": "τ2-Bench evaluates tool-calling agents in realistic multi-turn customer service scenarios across multiple domains.",
+          "tags": [
+            "agents",
+            "tool-use",
+            "multi-turn"
+          ],
+          "exists_on_hf": false
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/sierra-research/tau2-bench",
+          "ref": "v1.0.0",
+          "license": "MIT",
+          "env_requires": {
+            "python": ">=3.12",
+            "gpu": false,
+            "sandbox": null
+          },
+          "setup": [
+            "{{uv}} pip install -e {{repo_dir}}[voice,knowledge] litellm>=1.80.15,<1.90"
+          ],
+          "model_interface": {
+            "type": "api",
+            "how": "通过 LiteLLM 路由，读 OPENAI_API_KEY + OPENAI_API_BASE 环境变量，模型名前缀 openai/ 走 OpenAI 兼容接口"
+          },
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run_tau2_bench_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "pass_rate",
+            "scale": "ratio",
+            "metric_name": "pass_rate"
+          },
+          "data_alignment": {
+            "ref_paper": "τ-Bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains",
+            "ref_url": "https://arxiv.org/abs/2406.12045",
+            "data_version": "tau2-bench v1.0.0 (airline + retail domains)",
+            "verified_date": "2026-07-13"
+          },
+          "notes": "⚠️ τ2-bench 需要 Python>=3.12（benchmark 依赖要求）。Windows 用户可运行 'py -3.12 --version' 检查，或通过 'winget install Python.Python.3.12' 安装。使用 LiteLLM 路由模型调用。默认评测 airline + retail 两个 domain，可通过 ONEEVAL_TAU2_DOMAINS 环境变量指定（如 'airline' 或 'retail' 或 'airline,retail'）。默认 user simulator 与 agent 使用同一模型，可通过 ONEEVAL_USER_MODEL 环境变量指定独立的用户模拟器模型（推荐 gpt-5.2）。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/tau2_bench/run_tau2_bench_oneeval.py",
+              "dest": "run_tau2_bench_oneeval.py"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "bench_name": "gaia",
+      "bench_table_exist": true,
+      "bench_source_url": "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+      "bench_dataflow_eval_type": null,
+      "bench_kind": "external_repo",
+      "bench_prompt_template": null,
+      "bench_keys": [],
+      "meta": {
+        "bench_name": "gaia",
+        "source": "external_repo",
+        "aliases": [
+          "gaia",
+          "GAIA",
+          "gaia-benchmark"
+        ],
+        "category": "Agents & Tools",
+        "tags": [
+          "agents & tools use",
+          "reasoning",
+          "multi-step",
+          "tool-use",
+          "web-browsing"
+        ],
+        "description": "GAIA: General AI Assistants benchmark. Evaluates AI agents on real-world multi-step questions requiring web browsing, reasoning, and tool use.",
+        "description_zh": "GAIA: 通用 AI 助手基准测试。评估 AI Agent 在真实世界多步骤问题上的表现，需要网页浏览、推理和工具使用。",
+        "hf_meta": {
+          "bench_name": "gaia",
+          "hf_repo": "gaia-benchmark/GAIA",
+          "card_text": "GAIA evaluates AI assistants on real-world questions that require multi-step reasoning, web browsing, and tool use.",
+          "tags": [
+            "agents",
+            "tool-use",
+            "reasoning",
+            "multi-step"
+          ],
+          "task_categories": [
+            "question-answering"
+          ]
+        },
+        "repo_eval": {
+          "repo_url": "https://github.com/huggingface/smolagents",
+          "ref": "v1.25.0",
+          "license": "Apache-2.0",
+          "env_requires": {
+            "python": ">=3.10"
+          },
+          "setup": [
+            "{{uv}} pip install smolagents[openai] ddgs markdownify requests datasets --python {{python}}"          ],
+          "run": {
+            "work_dir": "{{repo_dir}}",
+            "argv": [
+              "{{python}}",
+              "run_gaia_oneeval.py",
+              "--output_dir",
+              "{{output_dir}}"
+            ]
+          },
+          "result": {
+            "path": "scores_*.json",
+            "format": "json",
+            "score_path": "average.accuracy",
+            "scale": "percent",
+            "metric_name": "accuracy"
+          },
+          "data_alignment": {
+            "ref_paper": "GAIA: a benchmark for General AI Assistants",
+            "ref_url": "https://arxiv.org/abs/2311.12983",
+            "data_version": "2023_all validation split (165 questions)",
+            "verified_date": "2026-07-17"
+          },
+          "notes": "使用 smolagents v1.25.0 (HuggingFace 官方 Agent 框架) + OpenAIModel 运行 GAIA 评测。Agent 配备 DuckDuckGo 搜索和 Python 代码执行工具，兼容任意 OpenAI 兼容端点。⚠️ GAIA 是 gated dataset，需要：1) 在 https://huggingface.co/datasets/gaia-benchmark/GAIA 接受使用条款；2) 在 evalspec 的 runtime.env 中设置 HF_TOKEN。搜索工具免费无需额外 API key。默认使用 validation split（165 题，答案公开），test split 需提交 leaderboard。评分使用 GAIA 官方 scorer：字符串归一化 exact match，支持数字/列表/文本三种比较模式。",
+          "patch_files": [
+            {
+              "src": "one_eval/patches/gaia/run_gaia_oneeval.py",
+              "dest": "run_gaia_oneeval.py"
+            }
+          ]
+        },
+        "download_config": {
+          "config": "2023_all",
+          "split": "validation",
+          "reason": "validation split (165 questions) has public answers. test split (300 questions) requires leaderboard submission for scoring."
+        }
+      }
     }
   ]
 }

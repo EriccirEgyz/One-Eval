@@ -27,6 +27,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common as common  # noqa: E402
@@ -147,41 +148,213 @@ def _extract_score(stats: dict) -> dict:
     }
 
 
-def _external_repo_result(bench_dict: dict) -> dict:
-    """external_repo bench 的优雅短路。
+def _run_external_repo(bench_dict: dict, model_dict: dict, cache_dir: Path,
+                        output_dir: Path, max_samples=None,
+                        runtime_env: Optional[Dict[str, str]] = None) -> dict:
+    """执行 external_repo 类型的评测。
 
-    不下载、不调内核、不报错：把 meta.repo_eval 原样带出，交给调用方 agent 按
-    references/external_bench.md 在外部执行评测、再回填分数。当前版本不内置执行器。
+    使用 ExternalRepoRunner 真正运行外部仓库的评测工具。
     """
+    from one_eval.toolkits.external_repo_runner import ExternalRepoRunner
+
     bench_dict = common.normalize_benchmark_entry(bench_dict)
+    bench_name = bench_dict.get("bench_name")
     meta = bench_dict.get("meta") or {}
+    repo_eval = meta.get("repo_eval", {})
+
+    if not repo_eval:
+        return {
+            "bench_name": bench_name,
+            "bench_kind": common.BENCH_KIND_EXTERNAL,
+            "mode": "external_repo_failed",
+            "ok": False,
+            "error": "repo_eval 配置缺失",
+            "dataflow_score": {"score": None, "metric": None, "role": "primary"}
+        }
+
+    # 初始化 ExternalRepoRunner
+    # 使用项目根目录的 cache/external_repos（而不是 one-eval-skill/cache）
+    project_root = Path(__file__).resolve().parents[2]  # 从 scripts/ 上两级到项目根目录
+    external_cache = project_root / "cache" / "external_repos"
+    runner = ExternalRepoRunner(cache_dir=str(external_cache))
+
+    # 1. 设置仓库（clone + venv + install）
+    print(f"[{bench_name}] 设置外部仓库...")
+    setup_result = runner.setup_repo(repo_eval)
+    if not setup_result.get("ok"):
+        return {
+            "bench_name": bench_name,
+            "bench_kind": common.BENCH_KIND_EXTERNAL,
+            "mode": "external_repo_failed",
+            "ok": False,
+            "stage": setup_result.get("stage"),
+            "error": setup_result.get("error"),
+            "dataflow_score": {"score": None, "metric": None, "role": "primary"}
+        }
+
+    repo_path = setup_result["repo_path"]
+    python_path = setup_result["python"]
+    print(f"[{bench_name}] ✅ 仓库设置完成")
+
+    # 2. 准备环境变量
+    env_vars = {}
+    if model_dict.get("is_api"):
+        api_key = model_dict.get("api_key")
+        api_url = model_dict.get("api_url")
+
+        if api_key:
+            env_vars["OPENAI_API_KEY"] = api_key
+        if api_url:
+            # OpenAI SDK expects base_url without /chat/completions
+            base = api_url.rstrip("/")
+            if base.lower().endswith("/chat/completions"):
+                base = base[: -len("/chat/completions")].rstrip("/")
+            env_vars["OPENAI_API_BASE"] = base
+
+    # 传递模型名称和采样限制
+    model_name_val = model_dict.get("model_name_or_path", "")
+    if model_name_val:
+        env_vars["ONEEVAL_MODEL_NAME"] = model_name_val
+    if max_samples is not None:
+        env_vars["ONEEVAL_MAX_SAMPLES"] = str(max_samples)
+
+    # 传递数据相关配置（所有字段可选，bridge 脚本自带默认值）
+    # split: 从 evalspec 顶层或 download_config 读取
+    dl_config = bench_dict.get("download_config") or meta.get("download_config") or {}
+    split = bench_dict.get("split") or dl_config.get("split")
+    if split:
+        env_vars["ONEEVAL_SPLIT"] = split
+
+    # config: HuggingFace dataset config（如 MMMU-Pro 的 vision/standard）
+    config = dl_config.get("config")
+    if config:
+        env_vars["ONEEVAL_CONFIG"] = config
+
+    # prompt_mode: 评测时的提示模式（如 direct/cot）
+    eval_config = bench_dict.get("evaluation_config") or {}
+    prompt_mode = eval_config.get("prompt_mode")
+    if prompt_mode:
+        env_vars["ONEEVAL_MODE"] = prompt_mode
+
+    # 用户自定义环境变量（来自 evalspec.runtime.env）
+    if runtime_env:
+        env_vars.update(runtime_env)
+
+    # 3. 运行评测
+    eval_output_dir = output_dir / "_external" / bench_name
+    print(f"[{bench_name}] 运行评测...")
+    t0 = time.time()
+    run_result = runner.run_evaluation(
+        repo_config=repo_eval,
+        repo_path=repo_path,
+        python_path=python_path,
+        env_vars=env_vars,
+        output_dir=str(eval_output_dir)
+    )
+    elapsed = round(time.time() - t0, 2)
+
+    if not run_result.get("ok"):
+        error_info = {
+            "bench_name": bench_name,
+            "bench_kind": common.BENCH_KIND_EXTERNAL,
+            "mode": "external_repo_failed",
+            "ok": False,
+            "stage": run_result.get("stage"),
+            "error": run_result.get("error"),
+            "log_path": run_result.get("log_path"),
+            "elapsed_sec": elapsed,
+            "dataflow_score": {"score": None, "metric": None, "role": "primary"}
+        }
+
+        # 添加智能建议
+        if run_result.get("error_type"):
+            error_info["error_type"] = run_result["error_type"]
+        if run_result.get("suggestion"):
+            error_info["suggestion"] = run_result["suggestion"]
+            print(f"[{bench_name}] 💡 建议：")
+            for line in run_result["suggestion"].split("\n"):
+                if line.strip():
+                    print(f"     {line}")
+        if run_result.get("retryable"):
+            error_info["retryable"] = True
+            print(f"[{bench_name}] ⚠️ 此错误可重试（配置代理或网络后）")
+
+        return error_info
+
+    print(f"[{bench_name}] ✅ 评测完成")
+
+    # 4. 解析结果
+    print(f"[{bench_name}] 解析结果...")
+    result_config = repo_eval.get("result", {})
+    parse_result = runner.parse_results(
+        result_config=result_config,
+        output_dir=run_result["output_dir"]
+    )
+
+    if not parse_result.get("ok"):
+        return {
+            "bench_name": bench_name,
+            "bench_kind": common.BENCH_KIND_EXTERNAL,
+            "mode": "external_repo_failed",
+            "ok": False,
+            "stage": parse_result.get("stage"),
+            "error": parse_result.get("error"),
+            "log_path": run_result.get("log_path"),
+            "elapsed_sec": elapsed,
+            "dataflow_score": {"score": None, "metric": None, "role": "primary"}
+        }
+
+    score = parse_result["score"]
+    metric_name = parse_result["metric_name"]
+    print(f"[{bench_name}] ✅ {metric_name}: {score}")
+
+    # 5. 返回结果
+    total_samples = parse_result.get("total_samples")
+    detail_rel = parse_result.get("detail_path")
+    detail_path = None
+    if detail_rel:
+        detail_abs = (eval_output_dir / detail_rel).resolve()
+        if detail_abs.exists():
+            detail_path = str(detail_abs)
+
     return {
-        "bench_name": bench_dict.get("bench_name"),
+        "bench_name": bench_name,
         "bench_kind": common.BENCH_KIND_EXTERNAL,
         "bench_dataflow_eval_type": bench_dict.get("bench_dataflow_eval_type"),
-        "mode": "external_repo_pending",
-        "dataflow_score": {"score": None, "total_samples": None, "valid_samples": None,
-                           "metric": None, "role": "diagnostic",
-                           "display_as_primary": False},
-        "repo_eval": meta.get("repo_eval", {}),
+        "mode": "external_repo",
+        "elapsed_sec": elapsed,
+        "dataflow_score": {
+            "score": score,
+            "metric": metric_name,
+            "role": "primary",
+            "display_as_primary": True,
+            "total_samples": total_samples,
+            "note": f"Score from external evaluation tool: {repo_eval.get('repo_url')}"
+        },
+        "detail_path": detail_path,
+        "result_file": parse_result.get("result_file"),
+        "log_path": run_result.get("log_path"),
+        "repo_eval": repo_eval,
         "evaluation": meta.get("evaluation"),
         "prompt": meta.get("prompt"),
         "readiness": meta.get("readiness"),
-        "note": "external_repo bench：需在外部仓库/沙箱执行评测后回填分数，详见 references/external_bench.md",
-        "ok": True,  # 不算失败：只是待外部执行，不应让整批退出码非 0
+        "ok": True
     }
 
 
 def run_one_bench(bench_dict: dict, model_dict: dict, cache_dir: Path,
-                  output_dir: Path, smoke: bool, max_samples) -> dict:
+                  output_dir: Path, smoke: bool, max_samples,
+                  runtime_env: Optional[Dict[str, str]] = None) -> dict:
     """评测单个 benchmark，返回结果 dict。"""
-    from one_eval.toolkits.dataflow_eval_tool import DataFlowEvalTool
-
     bench_dict = common.normalize_benchmark_entry(bench_dict)
 
-    # external_repo：不走确定性内核，优雅短路（不下载/不调内核/不报错）。
+    # external_repo：调用 ExternalRepoRunner 真正执行外部评测
     if common.get_bench_kind(bench_dict) == common.BENCH_KIND_EXTERNAL:
-        return _external_repo_result(bench_dict)
+        return _run_external_repo(bench_dict, model_dict, cache_dir, output_dir, max_samples,
+                                  runtime_env=runtime_env)
+
+    # dataflow 类型：导入 DataFlowEvalTool
+    from one_eval.toolkits.dataflow_eval_tool import DataFlowEvalTool
 
     bench_name = bench_dict["bench_name"]
     eval_type = bench_dict.get("bench_dataflow_eval_type")
@@ -307,7 +480,8 @@ def main(argv=None):
         print(f"[{i}/{len(benches)}] {name} ...", flush=True)
         try:
             res = run_one_bench(bench_dict, model_dict, cache_dir, run_dir,
-                                smoke=args.smoke, max_samples=max_samples)
+                                smoke=args.smoke, max_samples=max_samples,
+                                runtime_env=runtime.get("env"))
             all_results.append(res)
             if res.get("mode") == "external_repo_pending":
                 print(f"  ⊙ external_repo | 待外部执行回填（见 references/external_bench.md）",

@@ -11,6 +11,13 @@
   3. 用 `prepare_bench.py` 下载预览结构 → 填 key_mapping → `run_eval.py --smoke` 验证。
   4. 测通后该 bench 进入 READY（`.local_state.json`），可手工登记到下方 READY 区。
 
+### external_repo 类 bench 通用说明
+所有 `eval_type` 为 `external_repo` 的 bench，evalspec 中**必须**加 `bench_kind: external_repo`。它们的共同特征：
+- 不走 One-Eval 内核的 dataflow 评测流程，而是克隆外部仓库 + 运行 bridge 脚本
+- 模型通过 `OPENAI_API_KEY` + `OPENAI_API_BASE` 环境变量接入（由 One-Eval 自动注入）
+- 仓库版本（ref）已在 `bench_gallery.json` 中锁定，运行时自动使用
+- 备注列中标注的"前置条件"是用户必须满足的（如 HF_TOKEN、Docker、Python 版本、联网环境等），agent 应在生成 evalspec 前向用户确认这些条件
+
 
 ---
 
@@ -23,23 +30,23 @@
 _（暂无）_
 
 
-
 ---
 
 ## 候选区（未验证，按分类）
 
 
-### Agents & Tools（7）
+### Agents & Tools（9）
 
-| bench_name | eval_type(初判) | source_url | 原始字段 |
-|---|---|---|---|
-| acpbench | `key2_qa` | https://huggingface.co/datasets/ibm-research/acp_bench | id, group, context, question, answer |
-| agentharm | `key2_qa` | https://huggingface.co/datasets/ai-safety-institute/AgentHarm | id, id_original, detailed_prompt, hint_included, name, category, prompt, target_functions, grading_function |
-| bfcl | `key2_qa` | — | question, answer |
-| crmarena | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArena | idx, answer, metadata, reward_metric, query, task |
-| crmarena-pro | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArenaPro | idx, answer, task, persona, metadata, reward_metric, query |
-| gaia | `key2_qa` | https://huggingface.co/datasets/gaia-benchmark/GAIA | task_id, Question, Level, Final answer, file_name, file_path, Annotator Metadata |
-| scigym | `key2_qa` | https://huggingface.co/datasets/h4duan/scigym-sbml | folder_name, truth_sedml, partial, truth_xml |
+| bench_name | eval_type(初判) | source_url | 原始字段 | 备注 |
+|---|---|---|---|---|
+| acpbench | `key2_qa` | https://huggingface.co/datasets/ibm-research/acp_bench | id, group, context, question, answer | |
+| agentharm | `key2_qa` | https://huggingface.co/datasets/ai-safety-institute/AgentHarm | id, id_original, detailed_prompt, hint_included, name, category, prompt, target_functions, grading_function | |
+| bfcl | `external_repo` | https://gorilla.cs.berkeley.edu/leaderboard | gorilla-llm/Berkeley-Function-Calling-Leaderboard (HF, 4441题) | 【前置条件】Docker（宿主机需安装并启动 Docker daemon）。函数/工具调用评测 (AST 匹配+执行验证)；预构建镜像 `oneeval/bfcl:latest`。默认跑 AST+Live，可通过 `BFCL_TEST_CATEGORIES` env 选子集 (ast/live/multi_turn/non_live/single_turn/all/default) |
+| crmarena | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArena | idx, answer, metadata, reward_metric, query, task | |
+| crmarena-pro | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArenaPro | idx, answer, task, persona, metadata, reward_metric, query | |
+| gaia | `external_repo` | https://huggingface.co/datasets/gaia-benchmark/GAIA | gaia-benchmark/GAIA (HF, validation 165题) | 【前置条件】①HF_TOKEN（gated dataset，需先在 HF 页面接受使用条款）②联网环境（agent 运行时需访问外网搜索）。通用 AI 助手评测：多步推理+网页搜索+工具使用；smolagents CodeAgent。评分：normalized exact match |
+| tau2_bench | `external_repo` | https://github.com/sierra-research/tau2-bench | τ2-bench (airline/retail/telecom/banking_knowledge) | 【前置条件】无额外前置条件（uv 会自动安装 Python>=3.12）。多轮客服场景 Agent 工具调用评测；LiteLLM 路由。可通过 `ONEEVAL_TAU2_DOMAINS` env 选 domain (airline/retail/telecom/banking_knowledge，逗号分隔，默认 airline,retail)，`ONEEVAL_USER_MODEL` env 指定用户模拟器模型 |
+| scigym | `key2_qa` | https://huggingface.co/datasets/h4duan/scigym-sbml | folder_name, truth_sedml, partial, truth_xml | |
 
 
 ### Domain-Specific（14）
@@ -193,4 +200,22 @@ _（暂无）_
 | toxigen | `key1_text_score` | https://huggingface.co/datasets/toxigen/toxigen-data | text, target_group, factual?, ingroup_effect, lewd, framing, predicted_group, stereotyping, intent, toxicity_ai, toxicity_human, predicted_author, actual_method |
 | winogender | `key3_q_choices_a` | https://huggingface.co/datasets/oskarvanderwal/winogender | sentid, sentence, pronoun, occupation, participant, gender, target, label |
 | xstest | `key3_q_a_rejected` | — | chosen, rejected |
+
+
+### Multimodal（3）
+
+| bench_name | eval_type(初判) | source_url | 原始字段 | 备注 |
+|---|---|---|---|---|
+| mathvista | `external_repo` | https://mathvista.github.io/ | AI4Math/MathVista (HF testmini, 1000题) | 【前置条件】vision 模型（需支持图片输入）。数学视觉推理；使用 MathVista 官方仓库评测代码 |
+| mmmu | `external_repo` | https://mmmu-benchmark.github.io/ | MMMU/MMMU (HF validation 900题 / test 10500题) | 【前置条件】vision 模型（需支持图片输入）。30学科多模态理解与推理。可通过 `ONEEVAL_SPLIT` env 选 validation/test，默认 validation |
+| mmmu_pro | `external_repo` | https://mmmu-benchmark.github.io/ | MMMU/MMMU_Pro (HF test, 1730题) | 【前置条件】vision 模型（需支持图片输入）。MMMU 加强版，10选项。通过 `ONEEVAL_SPLIT` env 选 config (vision/standard (10 options)/standard (4 options))，默认 vision；通过 `ONEEVAL_MODE` env 选 prompt 模式 (direct/cot)，默认 direct |
+
+
+### Code（3）
+
+| bench_name | eval_type(初判) | source_url | 原始字段 | 备注 |
+|---|---|---|---|---|
+| livecodebench | `external_repo` | https://livecodebench.github.io/ | livecodebench/code_generation (HF, 持续更新) | 【前置条件】Docker（宿主机需安装并启动 Docker daemon）。代码生成 pass@1；预构建镜像 `oneeval/livecodebench:latest`。可通过 `ONEEVAL_LCB_RELEASE` env 指定版本 (release_v1–v5/release_latest)，默认 release_latest |
+| humanevalplus | `external_repo` | https://github.com/evalplus/evalplus | evalplus/humanevalplus (HF, 164题) | 【前置条件】Docker（宿主机需安装并启动 Docker daemon）。代码生成 pass@1；预构建镜像 `oneeval/humanevalplus:latest`，greedy decoding |
+| mbppplus | `external_repo` | https://github.com/evalplus/evalplus | evalplus/mbppplus (HF, 399题) | 【前置条件】Docker（宿主机需安装并启动 Docker daemon）。代码生成 pass@1；预构建镜像 `oneeval/mbppplus:latest`，与 HumanEval+ 共用 bridge 脚本 |
 
