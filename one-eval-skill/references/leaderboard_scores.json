@@ -489,6 +489,138 @@
         "source_url": "https://openai.com/index/gpt-4-research/",
         "as_of": "2023-03"
       }
+    ],
+    "mathvista": [
+      {
+        "model": "GPT-4V",
+        "score": 0.581,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT-4o-20240513",
+        "score": 0.638,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "InternVL2.5-8B",
+        "score": 0.644,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Claude-3.5-Sonnet",
+        "score": 0.677,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "InternVL2.5-26B",
+        "score": 0.677,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Qwen2-VL-72B",
+        "score": 0.705,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "InternVL2.5-38B",
+        "score": 0.719,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "InternVL2.5-78B",
+        "score": 0.723,
+        "setting": "0-shot, testmini split, VLMEvalKit, Overall Acc（%→0-1）",
+        "source": "InternVL2.5 技术报告 Table 6",
+        "source_url": "https://arxiv.org/abs/2412.05271",
+        "as_of": "2024-12"
+      }
+    ],
+    "humanevalplus": [
+      {
+        "model": "O1 mini (Sept 2024)",
+        "score": 0.890,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT 4o (Aug 2024)",
+        "score": 0.872,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Qwen2.5-Coder-32B-Instruct",
+        "score": 0.872,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "DeepSeek-V3 (Nov 2024)",
+        "score": 0.866,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT-4-Turbo (April 2024)",
+        "score": 0.866,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Claude Sonnet 3.5 (June 2024)",
+        "score": 0.817,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT-4 (May 2023)",
+        "score": 0.793,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Llama3-70B-Instruct",
+        "score": 0.720,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      }
     ]
   }
 }

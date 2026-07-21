@@ -84,7 +84,34 @@ def run_codegen(args) -> Path:
         log.info(f"NOTE: max_samples={args.max_samples} set, but evalplus requires full dataset "
                  f"for evaluation. Codegen will be limited to {args.max_samples} problems, "
                  f"evaluate will only score the generated subset.")
-        cmd.extend(["--id-range", f"[0,{args.max_samples}]"])
+        # Determine the id-range that covers exactly max_samples problems.
+        # Datasets may have gaps (e.g. MBPP+ has no id=5), so we sort all real
+        # ids and pick the range [first_id, nth_id + 1) to guarantee coverage.
+        start_id = 0
+        end_id = args.max_samples
+        try:
+            if args.dataset == "mbpp":
+                from evalplus.data import get_mbpp_plus
+                problems = get_mbpp_plus()
+            else:
+                from evalplus.data import get_human_eval_plus
+                problems = get_human_eval_plus()
+            ids = sorted(
+                int(key.split("/")[1])
+                for key in problems.keys()
+                if "/" in key and key.split("/")[1].isdigit()
+            )
+            if ids:
+                start_id = ids[0]
+                # Take the first max_samples ids and set end to cover them all
+                take = ids[:args.max_samples]
+                end_id = take[-1] + 1
+                log.info(f"Dataset '{args.dataset}': using id-range [{start_id},{end_id}) "
+                         f"to cover {len(take)} problems (ids may have gaps)")
+        except Exception as e:
+            log.warning(f"Could not determine id range, using [{start_id},{end_id}): {e}")
+            end_id = start_id + args.max_samples
+        cmd.extend(["--id-range", f"[{start_id},{end_id}]"])
 
     log.info(f"Running codegen: {' '.join(cmd)}")
     log.info(f"Timeout: {CODEGEN_TIMEOUT}s")

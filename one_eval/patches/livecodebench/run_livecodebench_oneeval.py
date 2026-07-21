@@ -97,6 +97,13 @@ def run_lcb_pipeline(args):
     Run LiveCodeBench generation + evaluation using internal APIs.
     This gives us control over max_samples truncation.
     """
+    # Remove stale output to prevent caching issues when max_samples changes
+    import shutil
+    stale_output = Path("output") / args.model_name
+    if stale_output.exists():
+        shutil.rmtree(stale_output)
+        log.info(f"Removed stale output directory: {stale_output}")
+
     lcb_argv = [
         "--model", args.model_name,
         "--scenario", args.scenario,
@@ -264,21 +271,76 @@ def extract_pass_at_k(raw_scores: dict) -> dict:
 
 
 def write_oneeval_scores(args, scores: dict):
-    """Write results in One-Eval's expected format."""
+    """Write results in One-Eval's expected format and per-sample detail JSONL."""
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
+
+    # Locate eval_all.json for per-sample detail
+    eval_all_path = None
+    output_base = Path("output") / args.model_name
+    if output_base.exists():
+        candidates = sorted(output_base.rglob("*_eval_all.json"))
+        if candidates:
+            eval_all_path = candidates[-1]
+
+    # Build enriched per-sample JSONL from eval_all data
+    total_samples = 0
+    detail_name = None
+    if eval_all_path and eval_all_path.exists():
+        try:
+            eval_all = json.loads(eval_all_path.read_text(encoding="utf-8"))
+            if isinstance(eval_all, list) and eval_all:
+                total_samples = len(eval_all)
+                detail_name = f"samples_{timestamp}.jsonl"
+                detail_dest = output_dir / detail_name
+                with open(detail_dest, "w", encoding="utf-8") as fout:
+                    for item in eval_all:
+                        # Pick the best solution (first passing one, or first)
+                        code_list = item.get("code_list") or []
+                        graded_list = item.get("graded_list") or []
+                        solution = ""
+                        if code_list:
+                            for code, passed in zip(code_list, graded_list):
+                                if passed:
+                                    solution = code
+                                    break
+                            if not solution:
+                                solution = code_list[0]
+
+                        pass_at_1 = item.get("pass@1", 0.0)
+                        record = {
+                            "task_id": item.get("question_id", ""),
+                            "prompt": item.get("question_content", ""),
+                            "solution": solution,
+                            "question_title": item.get("question_title", ""),
+                            "difficulty": item.get("difficulty", ""),
+                            "platform": item.get("platform", ""),
+                            "eval_score": float(pass_at_1),
+                            "eval_valid": True,
+                            "pass@1": float(pass_at_1),
+                            "n_passed": sum(1 for g in graded_list if g),
+                            "n_total": len(graded_list),
+                        }
+                        fout.write(json.dumps(record, ensure_ascii=False) + "\n")
+                log.info(f"Per-sample detail written to: {detail_dest} ({total_samples} problems)")
+        except (json.JSONDecodeError, OSError) as e:
+            log.warning(f"Could not load eval_all for detail: {e}")
+
     result = {
         "bench_name": "livecodebench",
         "model_name": args.model_name,
         "scenario": args.scenario,
         "release_version": args.release_version,
         "n": args.n,
+        "total_samples": total_samples,
         "temperature": args.temperature,
         "timestamp": timestamp,
         **scores,
     }
+    if detail_name:
+        result["detail_path"] = detail_name
 
     score_file = output_dir / f"scores_{timestamp}.json"
     score_file.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
