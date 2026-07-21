@@ -223,7 +223,7 @@ def parse_answer(response, all_choices, index2ans):
     return random.choice(all_choices) if all_choices else ""
 
 
-def process_sample(client, model_name, sample, setting, mode, max_tokens):
+def process_sample(client, model_name, sample, setting, mode, max_tokens, images_dir=None):
     """Process a single sample: inference + parse answer."""
     messages = build_messages(sample, setting, mode)
     response = call_model(client, model_name, messages, max_tokens)
@@ -235,13 +235,44 @@ def process_sample(client, model_name, sample, setting, mode, max_tokens):
     pred = parse_answer(response, all_choices, index2ans)
     is_correct = pred == sample.get("answer", "")
 
+    # Save images to disk and record paths
+    image_paths = []
+    if images_dir:
+        sample_id = sample["id"]
+        if setting == "vision":
+            # Vision mode: single 'image' field
+            img = sample.get("image")
+            if img is not None:
+                img_filename = f"{sample_id}_1.png"
+                img_path = images_dir / img_filename
+                try:
+                    img.save(img_path, format="PNG")
+                    image_paths.append(f"images/{img_filename}")
+                except Exception as e:
+                    log.warning(f"Failed to save image {img_filename}: {e}")
+        else:
+            # Standard mode: image_1 through image_7
+            for i in range(1, 8):
+                img = sample.get(f"image_{i}")
+                if img is not None:
+                    img_filename = f"{sample_id}_{i}.png"
+                    img_path = images_dir / img_filename
+                    try:
+                        img.save(img_path, format="PNG")
+                        image_paths.append(f"images/{img_filename}")
+                    except Exception as e:
+                        log.warning(f"Failed to save image {img_filename}: {e}")
+
     return {
         "id": sample["id"],
+        "question": sample.get("question", ""),  # Add question text for HTML report
+        "options": sample.get("options", "[]"),  # Add options for HTML report
         "response": response,
         "pred": pred,
         "answer": sample.get("answer", ""),
         "is_correct": is_correct,
         "subject": sample.get("subject", "unknown"),
+        "image_paths": image_paths,
     }
 
 
@@ -297,6 +328,10 @@ def main():
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Create images directory for storing sample images
+    images_dir = output_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
     client = OpenAI(base_url=args.api_base, api_key=args.api_key)
 
     # Load dataset
@@ -327,9 +362,38 @@ def main():
 
     def do_sample(sample):
         if sample["id"] in existing:
-            return existing[sample["id"]]
+            existing_item = existing[sample["id"]]
+            # Ensure image_paths exists for existing results
+            if "image_paths" not in existing_item:
+                sample_id = sample["id"]
+                image_paths = []
+                if args.setting == "vision":
+                    img = sample.get("image")
+                    if img is not None:
+                        img_filename = f"{sample_id}_1.png"
+                        img_path = images_dir / img_filename
+                        if not img_path.exists():
+                            try:
+                                img.save(img_path, format="PNG")
+                            except Exception as e:
+                                log.warning(f"Failed to save image {img_filename}: {e}")
+                        image_paths.append(f"images/{img_filename}")
+                else:
+                    for i in range(1, 8):
+                        img = sample.get(f"image_{i}")
+                        if img is not None:
+                            img_filename = f"{sample_id}_{i}.png"
+                            img_path = images_dir / img_filename
+                            if not img_path.exists():
+                                try:
+                                    img.save(img_path, format="PNG")
+                                except Exception as e:
+                                    log.warning(f"Failed to save image {img_filename}: {e}")
+                            image_paths.append(f"images/{img_filename}")
+                existing_item["image_paths"] = image_paths
+            return existing_item
         return process_sample(
-            client, args.model_name, sample, args.setting, args.mode, args.max_tokens
+            client, args.model_name, sample, args.setting, args.mode, args.max_tokens, images_dir
         )
 
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
@@ -372,12 +436,21 @@ def main():
 
     with open(detail_path, "w", encoding="utf-8") as fout:
         for r in results:
-            options = parse_options(r.get("options_str", "[]")) if "options_str" in r else []
-            # Build a readable prompt
+            options = parse_options(r.get("options", "[]"))
+            # Build a readable prompt with question and options
             subject = r.get("subject", "unknown")
             answer = r.get("answer", "")
             pred = r.get("pred", "")
-            prompt_text = f"[{subject} / {args.setting}]\nPredicted: {pred} | Correct Answer: {answer}"
+            question = r.get("question", "")
+
+            # Format options if available
+            options_text = ""
+            if options:
+                options_text = "\nOptions:\n" + "\n".join(
+                    f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)
+                )
+
+            prompt_text = f"[{subject} / {args.setting}]\n{question}{options_text}\nPredicted: {pred} | Correct Answer: {answer}"
 
             record = {
                 "task_id": r.get("id", ""),
@@ -389,6 +462,9 @@ def main():
                 "eval_score": 1.0 if r.get("is_correct") else 0.0,
                 "eval_valid": True,
             }
+            # Add image_paths if present
+            if "image_paths" in r and r["image_paths"]:
+                record["image_paths"] = r["image_paths"]
             fout.write(json.dumps(record, ensure_ascii=False) + "\n")
             total_samples += 1
 

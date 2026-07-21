@@ -152,6 +152,10 @@ def infer_subject(client, model_name, subject, split, max_samples,
     subject_dir.mkdir(parents=True, exist_ok=True)
     output_file = subject_dir / "output.json"
 
+    # Create images directory for storing sample images
+    images_dir = subject_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
     # Load existing results for resumption
     existing = {}
     if output_file.exists():
@@ -176,13 +180,30 @@ def infer_subject(client, model_name, subject, split, max_samples,
     for sample in samples:
         sample_id = sample["id"]
 
+        # Save images to disk for all samples (needed for HTML report)
+        images = get_images(sample)
+        image_paths = []
+        for i, img in enumerate(images, 1):
+            img_filename = f"{sample_id}_{i}.png"
+            img_path = images_dir / img_filename
+            if not img_path.exists():
+                try:
+                    img.save(img_path, format="PNG")
+                except Exception as e:
+                    log.warning(f"Failed to save image {img_filename}: {e}")
+            # Store relative path from subject_dir
+            image_paths.append(f"images/{img_filename}")
+
         # Skip if already done
         if sample_id in existing and existing[sample_id].get("response"):
-            results.append(existing[sample_id])
+            existing_item = existing[sample_id]
+            # Add image_paths to existing results if missing
+            if "image_paths" not in existing_item:
+                existing_item["image_paths"] = image_paths
+            results.append(existing_item)
             continue
 
         prompt = build_prompt(sample)
-        images = get_images(sample)
 
         response = call_model(
             client, model_name, prompt, images, temperature, max_tokens
@@ -198,11 +219,13 @@ def infer_subject(client, model_name, subject, split, max_samples,
 
         item = {
             "id": sample_id,
+            "question": sample.get("question", ""),  # Add question text for HTML report
             "question_type": sample["question_type"],
             "answer": sample.get("answer", ""),
             "all_choices": all_choices,
             "index2ans": index2ans,
             "response": response,
+            "image_paths": image_paths,  # Add image paths for HTML report
         }
         results.append(item)
 
@@ -359,11 +382,21 @@ def main():
                     correct = response.strip().upper() == answer.strip().upper()
 
                 # Build a readable prompt from available info
+                question_text = item.get("question", "")
                 if index2ans:
                     choices_str = " | ".join(f"{k}. {v}" for k, v in index2ans.items())
-                    prompt_text = f"[{subject} / {question_type}]\nChoices: {choices_str}\nCorrect Answer: {answer}"
+                    prompt_text = f"[{subject} / {question_type}]\n{question_text}\nChoices: {choices_str}\nCorrect Answer: {answer}"
                 else:
-                    prompt_text = f"[{subject} / {question_type}]\nCorrect Answer: {answer}"
+                    prompt_text = f"[{subject} / {question_type}]\n{question_text}\nCorrect Answer: {answer}"
+
+                # Build image paths relative to the samples JSONL location
+                image_paths = []
+                if "image_paths" in item:
+                    for img_path in item["image_paths"]:
+                        # Convert from "images/xxx.png" to "Subject/images/xxx.png"
+                        full_path = f"{subject}/{img_path}"
+                        image_paths.append(full_path)
+
                 record = {
                     "task_id": item.get("id", ""),
                     "subject": subject,
@@ -374,6 +407,8 @@ def main():
                     "eval_score": 1.0 if correct else 0.0,
                     "eval_valid": True,
                 }
+                if image_paths:
+                    record["image_paths"] = image_paths
                 fout.write(json.dumps(record, ensure_ascii=False) + "\n")
                 total_samples += 1
 

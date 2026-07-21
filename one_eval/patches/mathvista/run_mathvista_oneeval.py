@@ -86,9 +86,13 @@ def load_mathvista_data(dataset_name, split, max_samples=-1):
     return data
 
 
-def stage1_generate_responses(model, data, query_data, output_file):
+def stage1_generate_responses(model, data, query_data, output_file, output_dir):
     """Stage 1: Generate responses from model"""
     logging.info("Stage 1: Generating responses...")
+
+    # Create images directory for storing sample images
+    images_dir = Path(output_dir) / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
 
     results = {}
     if os.path.exists(output_file):
@@ -106,6 +110,17 @@ def stage1_generate_responses(model, data, query_data, output_file):
         query_text = query_data.get(pid, problem.get('query', ''))
         image = problem.get('decoded_image', None)
 
+        # Save image to disk for HTML report
+        image_paths = []
+        if image is not None:
+            img_filename = f"{pid}.png"
+            img_path = images_dir / img_filename
+            try:
+                image.save(img_path, format="PNG")
+                image_paths.append(f"images/{img_filename}")
+            except Exception as e:
+                logging.warning(f"Failed to save image {img_filename}: {e}")
+
         try:
             response = model.get_response(user_prompt=query_text, decoded_image=image)
 
@@ -121,7 +136,8 @@ def stage1_generate_responses(model, data, query_data, output_file):
                 'precision': problem.get('precision', 0),
                 'choices': problem.get('choices', []),
                 'task': problem.get('task', ''),
-                'skills': problem.get('skills', [])
+                'skills': problem.get('skills', []),
+                'image_paths': image_paths,
             }
 
             if idx % 10 == 0:
@@ -220,6 +236,7 @@ def stage3_calculate_scores(extracted, data, output_dir):
             "ground_truth": str(answer),
             "eval_score": 1.0 if is_correct else 0.0,
             "eval_valid": True,
+            "image_paths": item.get('image_paths', []),
         })
 
     scores = {}
@@ -281,7 +298,7 @@ def main():
     model.use_image = True
 
     # Stage 1: Generate responses
-    results = stage1_generate_responses(model, data, query_data, response_file)
+    results = stage1_generate_responses(model, data, query_data, response_file, args.output_dir)
 
     # Stage 2: Extract answers
     extracted = stage2_extract_answers(model, results, extracted_file)
