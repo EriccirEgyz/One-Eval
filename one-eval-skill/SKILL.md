@@ -110,8 +110,8 @@ python scripts/check_model.py --api --model <名> --api-url <url> --api-key <key
   再按 `references/eval_types.md` 判断 eval_type、规划 key_mapping（嵌套字段须先拍平）。
 - **自带仓库 / 需特殊环境的 bench**（LiveCodeBench、BFCL、EvalPlus 等需沙箱执行的）→
   走 `references/external_bench.md` 的 `bench_kind=external_repo` 机制：在 gallery 登记
-  仓库地址 + 安装/运行/取分说明。`run_eval.py` 会对这类 bench 优雅短路（返回
-  `external_repo_pending` + `repo_eval`），由你据此在外部执行后回填分数（本版未内置执行器）。
+  仓库地址 + 安装/运行/取分说明。`run_eval.py` 遇到这类 bench 会自动调用 `ExternalRepoRunner`，
+  完成 clone、venv 创建、依赖安装、评测运行、结果解析全流程，无需手动干预。
 
 ### 3. 选 metric（默认已给主分，额外维度可选）
 **先告诉用户每个 bench 默认用什么主分、它衡量什么能力**（dataflow 内核按 eval_type 自动选）：

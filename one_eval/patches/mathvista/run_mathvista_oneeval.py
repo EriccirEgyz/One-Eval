@@ -56,9 +56,7 @@ def parse_args():
 
     # MathVista parameters
     parser.add_argument('--dataset_name', type=str, default='AI4Math/MathVista')
-    parser.add_argument('--test_split', type=str,
-                        default=os.environ.get('ONEEVAL_SPLIT', 'testmini'),
-                        choices=['testmini', 'test'])
+
     parser.add_argument('--shot_num', type=int, default=0)
     parser.add_argument('--shot_type', type=str, default='solution',
                         choices=['solution', 'code'])
@@ -280,7 +278,7 @@ def main():
     extracted_file = os.path.join(args.output_dir, 'extracted.json')
 
     # Load data
-    data = load_mathvista_data(args.dataset_name, args.test_split, args.max_samples)
+    data = load_mathvista_data(args.dataset_name, 'testmini', args.max_samples)
 
     # Build query data using MathVista's original function
     logging.info("Creating query data...")
