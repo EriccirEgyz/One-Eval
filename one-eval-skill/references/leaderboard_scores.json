@@ -621,6 +621,64 @@
         "source_url": "https://evalplus.github.io/leaderboard.html",
         "as_of": "2024-12"
       }
+    ],
+    "mbppplus": [
+      {
+        "model": "O1 mini (Sept 2024)",
+        "score": 0.788,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Qwen2.5-Coder-32B-Instruct",
+        "score": 0.770,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Claude Sonnet 3.5 (June 2024)",
+        "score": 0.743,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT-4-Turbo (Nov 2023)",
+        "score": 0.733,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "DeepSeek-V3 (Nov 2024)",
+        "score": 0.730,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "GPT 4o (Aug 2024)",
+        "score": 0.722,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      },
+      {
+        "model": "Llama3-70B-Instruct",
+        "score": 0.690,
+        "setting": "pass@1, greedy",
+        "source": "EvalPlus 官方 Leaderboard",
+        "source_url": "https://evalplus.github.io/leaderboard.html",
+        "as_of": "2024-12"
+      }
     ]
   }
 }
