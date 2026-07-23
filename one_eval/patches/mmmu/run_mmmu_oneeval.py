@@ -86,7 +86,7 @@ def build_prompt(sample):
         if isinstance(options, str):
             options = eval(options)
         option_str = "\n".join(
-            f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)
+            f"({chr(65 + i)}) {opt}" for i, opt in enumerate(options)
         )
         prompt = (
             f"{question}\n{option_str}\n"
@@ -426,7 +426,7 @@ def main():
 
     log.info("=" * 60)
     log.info(f"MMMU evaluation complete!")
-    log.info(f"Overall Accuracy: {scores['average']['accuracy']:.2f}%")
+    log.info(f"Overall Accuracy: {scores['average']['accuracy']:.4f}")
     log.info(f"Total Samples: {scores['total_samples']}")
     log.info(f"Results saved to: {score_file}")
     log.info("=" * 60)

@@ -35,18 +35,13 @@ _（暂无）_
 ## 候选区（未验证，按分类）
 
 
-### Agents & Tools（9）
+### Agents & Tools（3）
 
 | bench_name | eval_type(初判) | source_url | 原始字段 | 备注 |
 |---|---|---|---|---|
-| acpbench | `key2_qa` | https://huggingface.co/datasets/ibm-research/acp_bench | id, group, context, question, answer | |
-| agentharm | `key2_qa` | https://huggingface.co/datasets/ai-safety-institute/AgentHarm | id, id_original, detailed_prompt, hint_included, name, category, prompt, target_functions, grading_function | |
 | bfcl | `external_repo` | https://gorilla.cs.berkeley.edu/leaderboard | gorilla-llm/Berkeley-Function-Calling-Leaderboard (HF, 4441题) | 【前置条件】Docker（宿主机需安装并启动 Docker daemon）。函数/工具调用评测 (AST 匹配+执行验证)；预构建镜像 `oneeval/bfcl:latest`。默认跑 AST+Live，可通过 `BFCL_TEST_CATEGORIES` env 选子集 (ast/live/multi_turn/non_live/single_turn/all/default) |
-| crmarena | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArena | idx, answer, metadata, reward_metric, query, task | |
-| crmarena-pro | `key2_qa` | https://huggingface.co/datasets/Salesforce/CRMArenaPro | idx, answer, task, persona, metadata, reward_metric, query | |
 | gaia | `external_repo` | https://huggingface.co/datasets/gaia-benchmark/GAIA | gaia-benchmark/GAIA (HF, validation 165题) | 【前置条件】①HF_TOKEN（gated dataset，需先在 HF 页面接受使用条款）②联网环境（agent 运行时需访问外网搜索）。通用 AI 助手评测：多步推理+网页搜索+工具使用；smolagents CodeAgent。评分：normalized exact match |
 | tau2_bench | `external_repo` | https://github.com/sierra-research/tau2-bench | τ2-bench (airline/retail/telecom/banking_knowledge) | 【前置条件】无额外前置条件（uv 会自动安装 Python>=3.12）。多轮客服场景 Agent 工具调用评测；LiteLLM 路由。可通过 `ONEEVAL_TAU2_DOMAINS` env 选 domain (airline/retail/telecom/banking_knowledge，逗号分隔，默认 airline,retail)，`ONEEVAL_USER_MODEL` env 指定用户模拟器模型 |
-| scigym | `key2_qa` | https://huggingface.co/datasets/h4duan/scigym-sbml | folder_name, truth_sedml, partial, truth_xml | |
 
 
 ### Domain-Specific（14）

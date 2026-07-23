@@ -350,8 +350,17 @@ def run_one_bench(bench_dict: dict, model_dict: dict, cache_dir: Path,
 
     # external_repo：调用 ExternalRepoRunner 真正执行外部评测
     if common.get_bench_kind(bench_dict) == common.BENCH_KIND_EXTERNAL:
-        return _run_external_repo(bench_dict, model_dict, cache_dir, output_dir, max_samples,
-                                  runtime_env=runtime_env)
+        bench_name = bench_dict.get("bench_name", "")
+        is_ready = common.get_ready_bench(bench_name) is not None
+        effective_smoke = smoke and not is_ready
+        effective_samples = SMOKE_SAMPLES if effective_smoke else max_samples
+        result = _run_external_repo(bench_dict, model_dict, cache_dir, output_dir,
+                                    effective_samples, runtime_env=runtime_env)
+        if effective_smoke and result.get("ok"):
+            result["mode"] = "smoke"
+            common.mark_bench_ready(bench_name, "external_repo", "external_repo", {})
+            result["marked_ready"] = True
+        return result
 
     # dataflow 类型：导入 DataFlowEvalTool
     from one_eval.toolkits.dataflow_eval_tool import DataFlowEvalTool
