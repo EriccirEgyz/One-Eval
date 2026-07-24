@@ -34,6 +34,7 @@ from pathlib import Path
 from datasets import load_dataset
 from openai import OpenAI
 from PIL import Image
+import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
@@ -108,33 +109,22 @@ def parse_options(options_str):
         return []
 
 
-def get_images_for_standard(sample):
-    """Extract images referenced by <image N> tokens in the question (standard mode)."""
-    question = sample.get("question", "")
-    image_tokens = re.findall(r"<image (\d+)>", question)
-    images = []
-    for token_num in image_tokens:
-        img = sample.get(f"image_{token_num}")
-        if img is not None:
-            images.append(img)
-    # If no tokens found, try image_1 through image_7
-    if not images:
-        for i in range(1, 8):
-            img = sample.get(f"image_{i}")
-            if img is not None:
-                images.append(img)
-    return images
-
 
 def build_messages(sample, setting, mode):
-    """Build API messages for a single sample."""
+    """Build API messages for a single sample.
+
+    Aligned with official infer_gpt.py message structure:
+    - Vision: user[prompt_text, image]
+    - Standard: user[clean_text, img1, img2, ...] (images appended in placeholder order)
+    """
     prompt_key = "vision" if setting == "vision" else "standard"
     prompt_suffix = PROMPTS[mode][prompt_key]
 
     content = []
 
     if setting == "vision":
-        # Vision mode: the question is embedded in the image (single 'image' field)
+        # Vision mode: instruction text first, then the single composite image
+        content.append({"type": "text", "text": prompt_suffix})
         img = sample.get("image")
         if img is not None:
             b64 = encode_image(img)
@@ -142,27 +132,34 @@ def build_messages(sample, setting, mode):
                 "type": "image_url",
                 "image_url": {"url": f"data:image/png;base64,{b64}"}
             })
-        content.append({"type": "text", "text": prompt_suffix})
     else:
-        # Standard mode: question text + images + options
+        # Standard mode: build full text (question + options + prompt),
+        # extract <image N> order, replace placeholders with <image>,
+        # then append images in that order after the text.
+        # (Aligned with official replace_images_tokens + make_interleave_content)
         question = sample["question"]
         options = parse_options(sample.get("options", "[]"))
         option_str = "\n".join(
             f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)
         )
+        full_text = f"{question}\n{option_str}\n{prompt_suffix}"
 
-        # Add images
-        images = get_images_for_standard(sample)
-        for img in images:
-            b64 = encode_image(img)
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{b64}"}
-            })
+        # Extract image indices in the order they appear in full text
+        image_order = [int(num) for num in re.findall(r"<image\s+(\d+)>", full_text)]
+        # Replace placeholders with generic <image> marker
+        clean_text = re.sub(r"<image\s+\d+>", "<image>", full_text)
 
-        # Add text (question + options + prompt)
-        text = f"{question}\n{option_str}\n{prompt_suffix}"
-        content.append({"type": "text", "text": text})
+        content.append({"type": "text", "text": clean_text})
+
+        # Append images in placeholder occurrence order
+        for idx in image_order:
+            img = sample.get(f"image_{idx}")
+            if img is not None:
+                b64 = encode_image(img)
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"}
+                })
 
     return [{"role": "user", "content": content}]
 
@@ -188,39 +185,68 @@ def call_model(client, model_name, messages, max_tokens, max_retries=3):
 
 
 def parse_answer(response, all_choices, index2ans):
-    """Parse answer letter from response (MMMU-Pro logic)."""
+    """Parse answer letter from response.
+
+    Aligned with MMMU-Pro official evaluate.py parse_multi_choice_response.
+    """
     if not response:
         return random.choice(all_choices) if all_choices else ""
 
-    # Try to find "Answer: X" pattern
-    answer_match = re.search(r"Answer:\s*([A-Z])", response, re.IGNORECASE)
-    if answer_match:
-        letter = answer_match.group(1).upper()
-        if letter in all_choices:
-            return letter
+    # Step 1: Find last "Answer:" pattern (official uses rfind)
+    last_answer_pos = response.rfind("Answer:")
+    if last_answer_pos != -1:
+        answer_str = response[last_answer_pos + len("Answer:"):].strip()
+        matching_options = [opt for opt in all_choices if opt in answer_str]
+        if len(matching_options) == 1:
+            return matching_options[0]
 
-    # Fallback: look for standalone letter patterns
-    response_clean = response.strip()
+    # Step 2+: Standard fallback chain
+    for char in [",", ".", "!", "?", ";", ":", "'"]:
+        response = response.strip(char)
+    response = " " + response + " "
 
-    # Check last line specifically
-    last_line = response_clean.split("\n")[-1].strip()
+    index_ans = True
+    ans_with_brack = False
+    candidates = []
+
     for choice in all_choices:
-        if re.search(rf"\b{choice}\b", last_line):
-            return choice
+        if f"({choice})" in response:
+            candidates.append(choice)
+            ans_with_brack = True
 
-    # Check (A), (B) patterns
-    patterns_found = []
-    for choice in all_choices:
-        pattern = rf"\({choice}\)"
-        matches = list(re.finditer(pattern, response))
-        if matches:
-            patterns_found.append((choice, matches[-1].start()))
+    if len(candidates) == 0:
+        for choice in all_choices:
+            if f"{choice} " in response:
+                candidates.append(choice)
 
-    if patterns_found:
-        return max(patterns_found, key=lambda x: x[1])[0]
+    if len(candidates) == 0:
+        for choice in all_choices:
+            if f"{choice}." in response:
+                candidates.append(choice)
 
-    # Last resort: random
-    return random.choice(all_choices) if all_choices else ""
+    if len(candidates) == 0 and len(response.split()) > 5:
+        for index, ans in index2ans.items():
+            if ans.lower() in response.lower():
+                candidates.append(index)
+                index_ans = False
+
+    if len(candidates) == 0:
+        return random.choice(all_choices) if all_choices else ""
+    elif len(candidates) > 1:
+        start_indexes = []
+        if index_ans:
+            if ans_with_brack:
+                for can in candidates:
+                    start_indexes.append(response.rfind(f"({can})"))
+            else:
+                for can in candidates:
+                    start_indexes.append(response.rfind(f" {can} "))
+        else:
+            for can in candidates:
+                start_indexes.append(response.lower().rfind(index2ans[can].lower()))
+        return candidates[np.argmax(start_indexes)]
+    else:
+        return candidates[0]
 
 
 def process_sample(client, model_name, sample, setting, mode, max_tokens, images_dir=None):

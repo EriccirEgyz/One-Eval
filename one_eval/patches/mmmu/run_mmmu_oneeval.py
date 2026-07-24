@@ -77,8 +77,8 @@ def encode_image(image) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def build_prompt(sample):
-    """Build the text prompt for a single MMMU sample."""
+def build_prompt_text(sample):
+    """Build the full prompt text (with <image N> placeholders kept in place)."""
     question = sample["question"]
     options = sample.get("options")
 
@@ -101,29 +101,40 @@ def build_prompt(sample):
 
 
 def get_images(sample):
-    """Extract all images from a sample (image_1 through image_7)."""
-    images = []
+    """Extract all images from a sample (image_1 through image_7) as a dict."""
+    images = {}
     for i in range(1, 8):
         img = sample.get(f"image_{i}")
         if img is not None:
-            images.append(img)
+            images[i] = img
     return images
 
 
-def call_model(client, model_name, prompt, images, temperature, max_tokens,
-               max_retries=3):
-    """Call OpenAI-compatible API with text + images."""
+def build_interleaved_content(prompt_text, images):
+    """Split prompt by <image N> placeholders and interleave actual images."""
+    parts = re.split(r"<image (\d+)>", prompt_text)
     content = []
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            text = part.strip()
+            if text:
+                content.append({"type": "text", "text": text})
+        else:
+            img_idx = int(part)
+            if img_idx in images:
+                b64 = encode_image(images[img_idx])
+                content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"}
+                })
+    if not content:
+        content.append({"type": "text", "text": prompt_text})
+    return content
 
-    for img in images:
-        b64 = encode_image(img)
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{b64}"}
-        })
 
-    content.append({"type": "text", "text": prompt})
-
+def call_model(client, model_name, content, temperature, max_tokens,
+               max_retries=3):
+    """Call OpenAI-compatible API with interleaved content."""
     messages = [{"role": "user", "content": content}]
 
     for attempt in range(max_retries):
@@ -183,7 +194,7 @@ def infer_subject(client, model_name, subject, split, max_samples,
         # Save images to disk for all samples (needed for HTML report)
         images = get_images(sample)
         image_paths = []
-        for i, img in enumerate(images, 1):
+        for i, img in images.items():
             img_filename = f"{sample_id}_{i}.png"
             img_path = images_dir / img_filename
             if not img_path.exists():
@@ -203,10 +214,11 @@ def infer_subject(client, model_name, subject, split, max_samples,
             results.append(existing_item)
             continue
 
-        prompt = build_prompt(sample)
+        prompt_text = build_prompt_text(sample)
+        content = build_interleaved_content(prompt_text, images)
 
         response = call_model(
-            client, model_name, prompt, images, temperature, max_tokens
+            client, model_name, content, temperature, max_tokens
         )
 
         # Build output in MMMU's expected format for main_parse_and_eval.py
