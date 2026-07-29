@@ -59,11 +59,10 @@ benchmarks:
   #     input_choices_key: "choices"
   #     input_label_key: "answer"
 
-  # 示例：external_repo bench（自带仓库/需沙箱执行，如 livecodebench）
+  # 示例：external_repo bench（自带仓库评测环境，如 mathvista、livecodebench）
   # 只需写 bench_name + bench_kind；meta.repo_eval（repo/装法/跑法/取分）会按名从
-  # bench_gallery.json 自动回填。run_eval 遇到它优雅短路，返回 external_repo_pending，
-  # 由 agent 按 references/external_bench.md 在外部沙箱执行后回填分数（本机不内置执行器）。
-  # - bench_name: "livecodebench"
+  # bench_gallery.json 自动回填。run_eval.py 会自动 clone 仓库、创建 venv 并执行评测。
+  # - bench_name: "mathvista"
   #   bench_kind: "external_repo"
 
 # --- 额外多维度 metric（dataflow 主分数之外，可选）-------------------------

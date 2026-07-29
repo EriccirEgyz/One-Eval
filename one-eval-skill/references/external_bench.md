@@ -12,9 +12,9 @@
 做法是：在 gallery 里**登记仓库地址 + 安装/运行/取分说明**，把它当成一个
 「外部可复现的评测单元」挂进 One-Eval。
 
-> **本版状态：只定义 schema + 机制，不内置任何 external_repo 条目，也不内置执行器。**
-> 具体 bench 由用户逐个提供（repo、装法、跑法、取分方式），届时按本契约填进 gallery；
-> 真正的自动 clone/执行逻辑（`external_runner.py`）留待需要时再补。
+> **当前状态：`ExternalRepoRunner` 已实现完整的自动化执行流程。**
+> `run_eval.py` 遇到 `external_repo` 类型的 bench 会自动调用 `external_repo_runner.py`，
+> 完成 clone、venv 创建、依赖安装、评测运行、结果解析全流程。
 
 ---
 
@@ -30,9 +30,14 @@ gallery 条目（`bench_gallery.json` 的 `benches[]`）新增**顶层字段** `
 **缺省值是 `dataflow`** —— 现有 103 个 bench 不带这个字段，行为完全不变。
 只有显式写 `"bench_kind": "external_repo"` 的条目才走外部路径。
 
-`run_eval.py` 遇到 `external_repo` 条目会**优雅短路**：不下载、不调内核、不报错，
-返回一条 `mode="external_repo_pending"` 的结果，并把 `meta.repo_eval` 原样带出，
-供调用方（你这个 agent）据此执行外部评测、再把最终分数回填。
+`run_eval.py` 遇到 `external_repo` 条目会调用 `ExternalRepoRunner` 自动执行：
+- clone 仓库到 `cache/external_repos/{repo_name}/{ref}/repo`
+- 创建独立 venv（避免污染 One-Eval 环境）
+- 复制 patch_files（如有）
+- 执行 setup 命令安装依赖
+- 运行评测命令
+- 解析结果文件并提取分数
+- 按 `meta.repo_eval` 的说明在外部执行后回填分数。
 
 ---
 
@@ -60,6 +65,7 @@ gallery 条目（`bench_gallery.json` 的 `benches[]`）新增**顶层字段** `
 | `model_interface` | ✓ | 这个 harness 怎么接被测模型：`api`（OpenAI 兼容 base_url+key）/ `local_vllm` / `custom`；以及它读哪些 env 或 config |
 | `run` | ✓ | 跑评测的命令模板（含占位符，见 §3），以及工作目录 |
 | `result` | ✓ | 跑完后结果落在哪、什么格式、怎么解析出主分数（见 §4） |
+| `patch_files` | ✗ | One-Eval 注入的自定义脚本列表，每项包含 `src`（项目内路径）和 `dest`（仓库内目标路径），在 setup 前复制 |
 | `data_alignment` | ✓ | **精度对齐说明**：用的是该 repo 的哪个数据版本/release/子集，对应我们要对齐的 tech report 里的哪个设置 |
 | `notes` | ✗ | 坑点、限速、已知 flaky 等 |
 
@@ -78,6 +84,11 @@ gallery 条目（`bench_gallery.json` 的 `benches[]`）新增**顶层字段** `
 | `{{work_dir}}` | clone 后的仓库本地路径 |
 | `{{output_dir}}` | 结果输出目录 |
 | `{{max_samples}}` | smoke/限量时的样本数（全量时为空） |
+| `{{uv}}` | uv 包管理器命令（setup 中使用） |
+| `{{python}}` | venv 中的 Python 解释器路径 |
+| `{{repo_dir}}` | clone 后的仓库根目录（与 work_dir 同义） |
+| `{{venv_path}}` | 虚拟环境路径 |
+| `{{oneeval_root}}` | One-Eval 项目根目录 |
 
 示例（仅示意字段形状，非真实条目）：
 ```json
@@ -106,16 +117,16 @@ gallery 条目（`bench_gallery.json` 的 `benches[]`）新增**顶层字段** `
 
 ---
 
-## 5. 接入一个 external_repo bench 的流程（将来逐个加时）
+## 5. 接入一个 external_repo bench 的流程
 
-1. 跟用户确认：repo 地址、固定 ref、装法、跑法、模型怎么接、结果在哪取分、对齐哪个数据版本。
-2. 复制 `assets/external_bench.entry.template.json`，按 §2–§4 填全 `meta.repo_eval`。
+1. 跟用户确认：repo 地址、固定 ref（commit SHA，不要用浮动的 main）、装法、跑法、模型怎么接、结果在哪取分、对齐哪个数据版本。
+2. 复制 `assets/external_bench.entry.template.json`（如有），按 §2–§4 填全 `meta.repo_eval`。
 3. 把条目追加进 `bench_gallery.json` 的 `benches[]`（`bench_kind="external_repo"`）。
-4. `python scripts/build_gallery_md.py` 重生成 gallery md（external 条目会单列一区）。
-5. 在 evalspec 里引用该 bench（**只需写 `bench_name` + `bench_kind: external_repo`**，
-   `meta.repo_eval` 会由 `run_eval.py` 按名从 `bench_gallery.json` 自动回填，无需在 spec 里重抄）
-   → `run_eval.py` 会短路返回 `external_repo_pending` + `repo_eval`。当前版本由你（agent）据此
-   **手动执行外部评测**并回填分数；待积累几个后再决定是否写统一的 `external_runner.py` 自动化。
+4. （可选）如需注入自定义脚本，在 `one_eval/patches/{bench_name}/` 放置 patch 文件，并在 `patch_files` 中声明。
+5. `python scripts/build_gallery_md.py` 重生成 gallery md（external 条目会单列一区）。
+6. 在 evalspec 里引用该 bench（**只需写 `bench_name` + `bench_kind: external_repo`**，
+   `meta.repo_eval` 会由 `run_eval.py` 按名从 `bench_gallery.json` 自动回填）
+   → `run_eval.py` 会调用 `ExternalRepoRunner` 自动执行完整流程。
 
 ## 6. 安全边界（重要）
 

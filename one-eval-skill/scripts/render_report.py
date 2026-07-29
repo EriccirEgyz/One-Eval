@@ -203,6 +203,7 @@ def build_sample_dashboard_data(
     max_rows_per_bench: Optional[int] = None,
     metrics: Optional[dict] = None,
     metrics_path: str | Path | None = None,
+    html_output_path: Optional[Path] = None,
 ) -> dict:
     results_path = Path(results_path)
     results = _load(str(results_path))
@@ -235,6 +236,24 @@ def build_sample_dashboard_data(
         for row in records:
             columns.update(row.keys())
 
+        # Convert absolute path to relative path for HTML
+        sample_path_str = ""
+        if path:
+            if html_output_path:
+                try:
+                    # Calculate relative path from HTML file to sample file
+                    # Ensure both paths are absolute for comparison
+                    abs_path = path.resolve() if not path.is_absolute() else path
+                    abs_html_parent = html_output_path.resolve().parent
+                    rel_path = abs_path.relative_to(abs_html_parent)
+                    # Convert Windows backslashes to forward slashes for browser compatibility
+                    sample_path_str = str(rel_path).replace('\\', '/')
+                except ValueError:
+                    # If paths are on different drives, use absolute path as fallback
+                    sample_path_str = str(path).replace('\\', '/')
+            else:
+                sample_path_str = str(path).replace('\\', '/')
+
         benches.append({
             "bench_name": bench_name,
             "eval_type": result.get("bench_dataflow_eval_type"),
@@ -242,7 +261,7 @@ def build_sample_dashboard_data(
             "ok": result.get("ok"),
             "score": _sample_score_value(result, metric_row),
             "detail_path": str(path) if path else "",
-            "sample_path": str(path) if path else "",
+            "sample_path": sample_path_str,
             "sample_path_kind": path_kind,
             "file_exists": file_exists,
             "load_error": load_error,
@@ -525,6 +544,10 @@ tr:hover td{background:var(--panel)}
 .case-field-type{color:var(--muted);font-size:12px;font-weight:600}
 .case-field-value{padding:10px 11px;white-space:pre-wrap;word-break:break-word;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:320px;overflow:auto}
+.case-images{display:flex;flex-wrap:wrap;gap:12px;padding:14px;border-bottom:1px solid var(--border);background:#0f1620}
+.case-image-item{max-width:500px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#111824}
+.case-image-item img{display:block;width:100%;height:auto;max-height:400px;object-fit:contain;background:#1a1f2e}
+.case-image-label{padding:6px 9px;font-size:11px;color:var(--muted);text-align:center;border-top:1px solid var(--border)}
 .sample-table-wrap{border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:650px;background:#111824}
 .sample-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;margin:0}
 .sample-table th,.sample-table td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:top}
@@ -630,6 +653,10 @@ def build_overview(overview: dict, lb: dict) -> str:
         if b["external"]:
             sc = '<div class="sc" style="font-size:18px;color:var(--accent)">外部待执行</div>'
             ex = "external_repo（需沙箱回填）"
+        elif b.get("mode") == "external_repo":
+            sc = f'<div class="sc">{fmt_score(b["score"])}</div>'
+            t = b.get("total") or b.get("dataflow_total") or "?"
+            ex = f'{t} 样本 ｜ {_esc(b.get("metric") or b.get("dataflow_metric") or "")} ｜ external_repo'
         else:
             sc = f'<div class="sc">{fmt_score(b["score"])}</div>'
             source = b.get("score_source") or "—"
@@ -720,6 +747,31 @@ def build_details(overview: dict, paths: dict | None = None) -> str:
         if b["external"]:
             body = ('<div class="row">该 bench 为 <b>external_repo</b> 类型，需在外部仓库/'
                     '沙箱执行后回填分数（详见 references/external_bench.md）。</div>')
+        elif b.get("mode") == "external_repo":
+            el = f'{b["elapsed_sec"]:.1f}s' if isinstance(b.get("elapsed_sec"), (int, float)) else "—"
+            t = b.get("total") or b.get("dataflow_total") or "?"
+            body = (
+                f'<div class="row"><span><b>主分数</b> {fmt_score(b["score"])}</span>'
+                f'<span><b>样本数</b> {t}</span>'
+                f'<span><b>主指标</b> {_esc(b.get("metric") or b.get("dataflow_metric") or "—")}</span>'
+                f'<span><b>模式</b> external_repo</span>'
+                f'<span><b>耗时</b> {el}</span></div>')
+            if b.get("dataflow_score") is not None:
+                body += (
+                    f'<div class="row"><span><b>DataFlow score</b> {fmt_score(b.get("dataflow_score"))}</span>'
+                    f'<span><b>DataFlow metric</b> {_esc(b.get("dataflow_metric") or "—")}</span>'
+                    f'<span><b>DataFlow total</b> {b.get("dataflow_total") or "?"}</span></div>'
+                )
+            if b.get("warning"):
+                body += f'<div class="callout" style="border-left-color:var(--star)">{_esc(b["warning"])}</div>'
+            if b.get("detail_path"):
+                body += (
+                    f'<div class="row"><b>逐样本看板</b> '
+                    f'<a href="#bench" data-sample-bench="{_esc(b.get("bench_name") or "")}" '
+                    f'data-report-bench-name="{_esc(b.get("bench_name") or "")}">'
+                    f'打开该 bench 明细页</a></div>'
+                )
+                body += f'<div class="row"><b>Detail path</b> <span class="path">{_esc(b["detail_path"])}</span></div>'
         else:
             el = f'{b["elapsed_sec"]:.1f}s' if isinstance(b.get("elapsed_sec"), (int, float)) else "—"
             body = (
@@ -1021,10 +1073,24 @@ SAMPLE_JS = """
         '</span><span class="case-field-type">' + esc(fieldType(value)) + '</span></div>' +
         '<div class="case-field-value' + cls + '">' + esc(empty(value) ? '—' : txt(value)) + '</div></div>';
     }).join('');
+
+    // Build images section if image_paths exists
+    var imagesHtml = '';
+    if (row.image_paths && Array.isArray(row.image_paths) && row.image_paths.length > 0) {
+      var benchPath = bench.sample_path || bench.detail_path || '';
+      var benchDir = benchPath.substring(0, benchPath.lastIndexOf('/'));
+      var imageItems = row.image_paths.map(function(imgPath, idx){
+        var fullPath = benchDir ? benchDir + '/' + imgPath : imgPath;
+        return '<div class="case-image-item"><img src="' + esc(fullPath) + '" alt="Image ' + (idx + 1) + '" loading="lazy">' +
+          '<div class="case-image-label">Image ' + (idx + 1) + '</div></div>';
+      }).join('');
+      imagesHtml = '<div class="case-images">' + imageItems + '</div>';
+    }
+
     detail.innerHTML =
       '<div class="case-detail-head"><div class="case-detail-title">' + esc(clip(caseTitle(row), 240)) + '</div>' +
       '<div class="case-detail-meta">' + meta.map(function(x){ return '<span>' + esc(x) + '</span>'; }).join('') +
-      '</div></div><div class="case-fields">' + fields + '</div>';
+      '</div></div>' + imagesHtml + '<div class="case-fields">' + fields + '</div>';
   }
   function render(){
     var bench = benches[state.bench] || {rows:[], columns:[]};
@@ -1206,6 +1272,7 @@ def main(argv=None):
                 args.results,
                 max_rows_per_bench=args.sample_dashboard_max_rows,
                 metrics=metrics,
+                html_output_path=out,
             )
             rows = sum(int(b.get("loaded_rows") or 0) for b in sample_data.get("benches", []))
             print(f"✓ 已内嵌样本明细看板数据: benches={len(sample_data.get('benches', []))} rows={rows}")
