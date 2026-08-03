@@ -37,14 +37,8 @@ EVALUATE_TIMEOUT = 1800
 def parse_args():
     parser = argparse.ArgumentParser(description="HumanEval+ evaluation for One-Eval")
     parser.add_argument("--output_dir", type=str, required=True)
-    parser.add_argument("--model_name", type=str,
-                        default=os.environ.get("ONEEVAL_MODEL_NAME", "gpt-4o"))
-    parser.add_argument("--api_base", type=str,
-                        default=os.environ.get("OPENAI_API_BASE", ""))
-    parser.add_argument("--api_key", type=str,
-                        default=os.environ.get("OPENAI_API_KEY", ""))
-    parser.add_argument("--max_samples", type=int,
-                        default=int(os.environ.get("ONEEVAL_MAX_SAMPLES", "-1")))
+    parser.add_argument("--model_name", type=str, default="gpt-4o")
+    parser.add_argument("--max_samples", type=int, default=-1)
     parser.add_argument("--n_samples", type=int, default=1,
                         help="Number of generations per problem (for pass@k)")
     parser.add_argument("--temperature", type=float, default=0.0)
@@ -61,8 +55,6 @@ def parse_args():
 def run_codegen(args) -> Path:
     """Run evalplus.codegen to generate code samples."""
     env = os.environ.copy()
-    if args.api_key:
-        env["OPENAI_API_KEY"] = args.api_key
 
     cmd = [
         sys.executable, "-m", "evalplus.codegen",
@@ -71,8 +63,9 @@ def run_codegen(args) -> Path:
         "--backend", "openai",
     ]
 
-    if args.api_base:
-        cmd.extend(["--base-url", args.api_base])
+    api_base = os.environ.get("OPENAI_API_BASE", "")
+    if api_base:
+        cmd.extend(["--base-url", api_base])
 
     if args.greedy:
         cmd.append("--greedy")
@@ -155,8 +148,6 @@ def run_evaluate(args, samples_file: Path) -> tuple:
         (scores_dict, eval_results_path or None)
     """
     env = os.environ.copy()
-    if args.api_key:
-        env["OPENAI_API_KEY"] = args.api_key
 
     # Remove stale eval_results to force fresh evaluation of all samples
     # evalplus names it {stem}_eval_results.json (underscore, not dot)

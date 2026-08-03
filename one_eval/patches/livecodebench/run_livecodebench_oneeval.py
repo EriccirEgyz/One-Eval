@@ -36,16 +36,10 @@ log = logging.getLogger("livecodebench_oneeval")
 def parse_args():
     parser = argparse.ArgumentParser(description="LiveCodeBench evaluation for One-Eval")
     parser.add_argument("--output_dir", type=str, required=True)
-    parser.add_argument("--model_name", type=str,
-                        default=os.environ.get("ONEEVAL_MODEL_NAME", "gpt-4o"))
-    parser.add_argument("--api_base", type=str,
-                        default=os.environ.get("OPENAI_API_BASE", ""))
-    parser.add_argument("--api_key", type=str,
-                        default=os.environ.get("OPENAI_API_KEY", ""))
-    parser.add_argument("--max_samples", type=int,
-                        default=int(os.environ.get("ONEEVAL_MAX_SAMPLES", "-1")))
+    parser.add_argument("--model_name", type=str, default="gpt-4o")
+    parser.add_argument("--max_samples", type=int, default=-1)
     parser.add_argument("--release_version", type=str,
-                        default=os.environ.get("ONEEVAL_LCB_RELEASE", "release_latest"))
+                        default="release_latest")
     parser.add_argument("--n", type=int, default=10,
                         help="Number of generations per problem (for pass@k)")
     parser.add_argument("--temperature", type=float, default=0.2)
@@ -58,16 +52,23 @@ def parse_args():
     parser.add_argument("--scenario", type=str, default="codegeneration",
                         choices=["codegeneration", "selfrepair",
                                  "testoutputprediction", "codeexecution"])
+    parser.add_argument("--skip_generation", action="store_true",
+                        default=False,
+                        help="Skip generation and use existing output JSON for evaluation only")
+    parser.add_argument("--eval_batch_size", type=int,
+                        default=32,
+                        help="Number of problems per evaluation batch (for memory efficiency and checkpointing)")
     return parser.parse_args()
 
 
-def setup_env(args):
-    """Map One-Eval env conventions to LiveCodeBench's expected env vars."""
-    if args.api_key:
-        os.environ["OPENAI_KEY"] = args.api_key
-
-    if args.api_base:
-        os.environ["OPENAI_BASE_URL"] = args.api_base
+def setup_env():
+    """Map orchestrator env vars to LiveCodeBench's expected env vars."""
+    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_base = os.environ.get("OPENAI_API_BASE", "")
+    if api_key:
+        os.environ["OPENAI_KEY"] = api_key
+    if api_base:
+        os.environ["OPENAI_BASE_URL"] = api_base
 
 
 def register_custom_model(model_name: str):
@@ -100,12 +101,13 @@ def run_lcb_pipeline(args):
     Run LiveCodeBench generation + evaluation using internal APIs.
     This gives us control over max_samples truncation.
     """
-    # Remove stale output to prevent caching issues when max_samples changes
-    import shutil
-    stale_output = Path("output") / args.model_name
-    if stale_output.exists():
-        shutil.rmtree(stale_output)
-        log.info(f"Removed stale output directory: {stale_output}")
+    # Remove stale output only when regenerating to prevent caching issues
+    if not args.skip_generation:
+        import shutil
+        stale_output = Path("output") / args.model_name
+        if stale_output.exists():
+            shutil.rmtree(stale_output)
+            log.info(f"Removed stale output directory: {stale_output}")
 
     lcb_argv = [
         "--model", args.model_name,
@@ -148,33 +150,131 @@ def run_lcb_pipeline(args):
             log.info(f"Truncating benchmark from {len(benchmark)} to {args.max_samples} samples")
             benchmark = benchmark[:args.max_samples]
 
-        log.info(f"Running generation on {len(benchmark)} problems, n={args.n}")
-
         output_path = get_output_path(model.model_repr, lcb_args)
-        runner = build_runner(lcb_args, model)
-        results = runner.run_main(benchmark, format_prompt)
 
-        combined_results = combine_results(
-            lcb_args.scenario, results, model, lcb_args.cot_code_execution
-        )
-
-        save_results = [
-            instance.insert_output(outputs_list, extracted_list)
-            for instance, (outputs_list, extracted_list) in zip(
-                benchmark, combined_results
+        if args.skip_generation:
+            if not Path(output_path).exists():
+                raise FileNotFoundError(
+                    f"No existing generation found at {output_path}. "
+                    "Run without --skip_generation first."
+                )
+            log.info(f"Skipping generation, loading from: {output_path}")
+            with open(output_path) as f:
+                saved = json.load(f)
+            # Match by question_id to be independent of sort order in saved JSON
+            saved_map = {item["question_id"]: item.get("code_list", []) for item in saved}
+            save_results = [
+                instance.insert_output(
+                    saved_map.get(instance.question_id, []),
+                    saved_map.get(instance.question_id, []),
+                )
+                for instance in benchmark
+            ]
+            combined_results = [
+                (saved_map.get(instance.question_id, []),
+                 saved_map.get(instance.question_id, []))
+                for instance in benchmark
+            ]
+            save_results, combined_results = sort_and_extract_save_results(
+                lcb_args.scenario, save_results
             )
-        ]
-        save_results, combined_results = sort_and_extract_save_results(
-            lcb_args.scenario, save_results
-        )
+            log.info(f"Loaded {len(save_results)} problems from existing generation")
+        else:
+            runner = build_runner(lcb_args, model)
+            results = runner.run_main(benchmark, format_prompt)
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump(save_results, f, indent=4)
-        log.info(f"Generation saved to: {output_path}")
+            combined_results = combine_results(
+                lcb_args.scenario, results, model, lcb_args.cot_code_execution
+            )
+
+            save_results = [
+                instance.insert_output(outputs_list, extracted_list)
+                for instance, (outputs_list, extracted_list) in zip(
+                    benchmark, combined_results
+                )
+            ]
+            save_results, combined_results = sort_and_extract_save_results(
+                lcb_args.scenario, save_results
+            )
+
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w") as f:
+                json.dump(save_results, f, indent=4)
+            log.info(f"Generation saved to: {output_path}")
 
         log.info("Running evaluation (pass@k)...")
-        metrics = get_metrics(lcb_args.scenario, lcb_args, benchmark, combined_results)
+
+        # Batch evaluation with checkpointing for memory efficiency and fault tolerance
+        checkpoint_path = Path(output_path).parent / f"{Path(output_path).stem}_eval_checkpoint.json"
+
+        # Load checkpoint if exists
+        all_results = {}
+        all_metadatas = [None] * len(benchmark)
+        start_batch = 0
+
+        if checkpoint_path.exists():
+            try:
+                ckpt = json.loads(checkpoint_path.read_text())
+                all_results = {int(k): v for k, v in ckpt["all_results"].items()}
+                all_metadatas = ckpt["all_metadatas"]
+                start_batch = ckpt["completed_batches"]
+                log.info(f"✅ Resuming from checkpoint: {start_batch} batches ({start_batch * args.eval_batch_size} problems) completed")
+            except (json.JSONDecodeError, KeyError) as e:
+                log.warning(f"Failed to load checkpoint: {e}, starting from scratch")
+                all_results = {}
+                all_metadatas = [None] * len(benchmark)
+                start_batch = 0
+
+        # Batch evaluation loop
+        num_batches = (len(benchmark) + args.eval_batch_size - 1) // args.eval_batch_size
+
+        for batch_idx in range(start_batch, num_batches):
+            start = batch_idx * args.eval_batch_size
+            end = min(start + args.eval_batch_size, len(benchmark))
+
+            log.info(f"Evaluating batch {batch_idx + 1}/{num_batches} (problems {start}-{end-1})...")
+
+            batch_metrics = get_metrics(
+                lcb_args.scenario,
+                lcb_args,
+                benchmark[start:end],
+                combined_results[start:end],
+            )
+
+            # Map local indices to global indices
+            for local_idx, result in batch_metrics[1].items():
+                all_results[start + int(local_idx)] = result
+
+            # Update metadatas for this batch
+            all_metadatas[start:end] = batch_metrics[2]
+
+            # Atomic checkpoint write
+            checkpoint_data = {
+                "completed_batches": batch_idx + 1,
+                "all_results": all_results,
+                "all_metadatas": all_metadatas,
+            }
+            tmp_path = checkpoint_path.with_suffix(".tmp")
+            tmp_path.write_text(json.dumps(checkpoint_data, ensure_ascii=False))
+            tmp_path.replace(checkpoint_path)
+
+            # Compute and log current global metrics
+            from lcb_runner.evaluation.pass_k_utils import compute_metrics_from_results
+            current_scores = compute_metrics_from_results(all_results, k_list=[1, 5])
+            log.info(f"✅ Batch {batch_idx + 1}/{num_batches} done | Current pass@1={current_scores.get('pass@1', 0):.2%}, pass@5={current_scores.get('pass@5', 0):.2%}")
+
+        # Compute final metrics from all results
+        from lcb_runner.evaluation.pass_k_utils import compute_metrics_from_results
+        final_scores = compute_metrics_from_results(all_results, k_list=[1, 5])
+        metrics = [final_scores, all_results, all_metadatas]
+
+        log.info(f"🎉 Evaluation complete! Final pass@1={final_scores.get('pass@1', 0):.2%}, pass@5={final_scores.get('pass@5', 0):.2%}")
+
+        # Clean up checkpoint after successful completion
+        if checkpoint_path.exists():
+            checkpoint_path.unlink()
+            log.info(f"Checkpoint removed: {checkpoint_path}")
+
         graded = extract_instance_results(metrics[1])
 
         eval_file = output_path.replace(".json", "_eval.json")
@@ -362,11 +462,14 @@ def main():
     log.info(f"  Release: {args.release_version}")
     log.info(f"  max_samples={args.max_samples}, n={args.n}, temp={args.temperature}")
 
-    setup_env(args)
+    setup_env()
     register_custom_model(args.model_name)
 
     log.info("=" * 60)
-    log.info("Running generation + evaluation")
+    if args.skip_generation:
+        log.info("Running evaluation only (--skip_generation)")
+    else:
+        log.info("Running generation + evaluation")
     log.info("=" * 60)
     raw_scores = run_lcb_pipeline(args)
 

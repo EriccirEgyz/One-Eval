@@ -146,9 +146,9 @@ class ExternalRepoRunner:
             )
             current_commit = result.stdout.strip()
 
-            # 获取期望的 commit
+            # 获取期望的 commit（用 ^{commit} 解引用 annotated tag）
             result = subprocess.run(
-                ["git", "rev-parse", repo_ref],
+                ["git", "rev-parse", f"{repo_ref}^{{commit}}"],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
@@ -656,7 +656,8 @@ class ExternalRepoRunner:
         repo_path: str,
         python_path: str,
         env_vars: Dict[str, str],
-        output_dir: str
+        output_dir: str,
+        params_argv: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         运行外部评测
@@ -670,6 +671,7 @@ class ExternalRepoRunner:
             python_path: 虚拟环境中的 Python 路径
             env_vars: 环境变量（如 OPENAI_API_KEY, OPENAI_API_BASE）
             output_dir: 输出目录
+            params_argv: bench 特定参数的 CLI args 列表（用于替换 {{params_argv}}）
 
         Returns:
             {
@@ -713,10 +715,15 @@ class ExternalRepoRunner:
         # 构建 argv（不替换环境变量）
         argv = []
         for arg in argv_template:
-            replaced = arg
-            for placeholder, value in variables.items():
-                replaced = replaced.replace(placeholder, value)
-            argv.append(replaced)
+            # 如果遇到 {{params_argv}} 占位符，展开为实际参数列表
+            if arg == "{{params_argv}}":
+                if params_argv:
+                    argv.extend(params_argv)
+            else:
+                replaced = arg
+                for placeholder, value in variables.items():
+                    replaced = replaced.replace(placeholder, value)
+                argv.append(replaced)
 
         # 设置环境变量
         env = os.environ.copy()
@@ -775,7 +782,7 @@ class ExternalRepoRunner:
                         stdout=log_file,
                         stderr=subprocess.STDOUT,
                         text=True,
-                        timeout=14400
+                        timeout=57600
                     )
                 else:
                     result = subprocess.run(
@@ -785,7 +792,7 @@ class ExternalRepoRunner:
                         stdout=log_file,
                         stderr=subprocess.STDOUT,
                         text=True,
-                        timeout=7200
+                        timeout=57600
                     )
 
             if result.returncode != 0:
@@ -939,14 +946,16 @@ class ExternalRepoRunner:
             }
 
         if len(matched_files) > 1:
-            return {
-                "ok": False,
-                "stage": "parse",
-                "error": f"匹配到多个结果文件 ({len(matched_files)} 个)，无法确定使用哪个",
-                "matched_files": [str(p) for p in matched_files]
-            }
-
-        result_file = matched_files[0]
+            # Pick the latest file by modification time
+            matched_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+            result_file = matched_files[0]
+            ignored = [str(p) for p in matched_files[1:]]
+            log.info(
+                f"匹配到 {len(matched_files)} 个结果文件，"
+                f"选择最新的: {result_file.name}，忽略: {ignored}"
+            )
+        else:
+            result_file = matched_files[0]
         log.info(f"找到结果文件: {result_file}")
 
         # 解析结果文件
