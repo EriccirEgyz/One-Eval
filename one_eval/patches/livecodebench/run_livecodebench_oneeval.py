@@ -52,9 +52,6 @@ def parse_args():
     parser.add_argument("--scenario", type=str, default="codegeneration",
                         choices=["codegeneration", "selfrepair",
                                  "testoutputprediction", "codeexecution"])
-    parser.add_argument("--skip_generation", action="store_true",
-                        default=False,
-                        help="Skip generation and use existing output JSON for evaluation only")
     parser.add_argument("--eval_batch_size", type=int,
                         default=32,
                         help="Number of problems per evaluation batch (for memory efficiency and checkpointing)")
@@ -101,13 +98,12 @@ def run_lcb_pipeline(args):
     Run LiveCodeBench generation + evaluation using internal APIs.
     This gives us control over max_samples truncation.
     """
-    # Remove stale output only when regenerating to prevent caching issues
-    if not args.skip_generation:
-        import shutil
-        stale_output = Path("output") / args.model_name
-        if stale_output.exists():
-            shutil.rmtree(stale_output)
-            log.info(f"Removed stale output directory: {stale_output}")
+    # Remove stale output to prevent caching issues
+    import shutil
+    stale_output = Path("output") / args.model_name
+    if stale_output.exists():
+        shutil.rmtree(stale_output)
+        log.info(f"Removed stale output directory: {stale_output}")
 
     lcb_argv = [
         "--model", args.model_name,
@@ -152,55 +148,27 @@ def run_lcb_pipeline(args):
 
         output_path = get_output_path(model.model_repr, lcb_args)
 
-        if args.skip_generation:
-            if not Path(output_path).exists():
-                raise FileNotFoundError(
-                    f"No existing generation found at {output_path}. "
-                    "Run without --skip_generation first."
-                )
-            log.info(f"Skipping generation, loading from: {output_path}")
-            with open(output_path) as f:
-                saved = json.load(f)
-            # Match by question_id to be independent of sort order in saved JSON
-            saved_map = {item["question_id"]: item.get("code_list", []) for item in saved}
-            save_results = [
-                instance.insert_output(
-                    saved_map.get(instance.question_id, []),
-                    saved_map.get(instance.question_id, []),
-                )
-                for instance in benchmark
-            ]
-            combined_results = [
-                (saved_map.get(instance.question_id, []),
-                 saved_map.get(instance.question_id, []))
-                for instance in benchmark
-            ]
-            save_results, combined_results = sort_and_extract_save_results(
-                lcb_args.scenario, save_results
-            )
-            log.info(f"Loaded {len(save_results)} problems from existing generation")
-        else:
-            runner = build_runner(lcb_args, model)
-            results = runner.run_main(benchmark, format_prompt)
+        runner = build_runner(lcb_args, model)
+        results = runner.run_main(benchmark, format_prompt)
 
-            combined_results = combine_results(
-                lcb_args.scenario, results, model, lcb_args.cot_code_execution
-            )
+        combined_results = combine_results(
+            lcb_args.scenario, results, model, lcb_args.cot_code_execution
+        )
 
-            save_results = [
-                instance.insert_output(outputs_list, extracted_list)
-                for instance, (outputs_list, extracted_list) in zip(
-                    benchmark, combined_results
-                )
-            ]
-            save_results, combined_results = sort_and_extract_save_results(
-                lcb_args.scenario, save_results
+        save_results = [
+            instance.insert_output(outputs_list, extracted_list)
+            for instance, (outputs_list, extracted_list) in zip(
+                benchmark, combined_results
             )
+        ]
+        save_results, combined_results = sort_and_extract_save_results(
+            lcb_args.scenario, save_results
+        )
 
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, "w") as f:
-                json.dump(save_results, f, indent=4)
-            log.info(f"Generation saved to: {output_path}")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(save_results, f, indent=4)
+        log.info(f"Generation saved to: {output_path}")
 
         log.info("Running evaluation (pass@k)...")
 
@@ -466,10 +434,7 @@ def main():
     register_custom_model(args.model_name)
 
     log.info("=" * 60)
-    if args.skip_generation:
-        log.info("Running evaluation only (--skip_generation)")
-    else:
-        log.info("Running generation + evaluation")
+    log.info("Running generation + evaluation")
     log.info("=" * 60)
     raw_scores = run_lcb_pipeline(args)
 

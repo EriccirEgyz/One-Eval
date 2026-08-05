@@ -596,13 +596,17 @@ class ExternalRepoRunner:
             "-v", f"{uv_cache}:/root/.cache/uv:rw",
             "-v", f"{hf_cache}:/root/.cache/huggingface:rw",
             "--env", "HF_HOME=/root/.cache/huggingface",
-            "--env", f"HF_ENDPOINT={os.environ.get('HF_ENDPOINT', 'https://hf-mirror.com')}",
             "--env", "UV_LINK_MODE=copy",
-            "-w", container_repo,
+            "-w", str(work_dir).replace(str(repo_path), container_repo).replace("\\", "/") if work_dir else container_repo,
         ]
 
         for key, value in env_vars.items():
             docker_argv.extend(["--env", f"{key}={value}"])
+
+        # HF_ENDPOINT：仅在宿主机显式设置时传入容器（否则容器内默认走 huggingface.co 原站）
+        hf_endpoint = os.environ.get("HF_ENDPOINT")
+        if hf_endpoint:
+            docker_argv.extend(["--env", f"HF_ENDPOINT={hf_endpoint}"])
 
         # 代理环境变量：将 localhost/127.0.0.1 替换为 host.docker.internal
         for proxy_var in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]:

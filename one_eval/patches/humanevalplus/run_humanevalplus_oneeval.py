@@ -45,10 +45,6 @@ def parse_args():
     parser.add_argument("--dataset", type=str, default="humaneval",
                         choices=["humaneval", "mbpp"],
                         help="Dataset to evaluate on (humaneval for HumanEval+, mbpp for MBPP+)")
-    parser.add_argument("--greedy", action="store_true", default=True,
-                        help="Use greedy decoding (default: True for deterministic results)")
-    parser.add_argument("--no-greedy", dest="greedy", action="store_false",
-                        help="Disable greedy decoding, use sampling with n_samples and temperature")
     return parser.parse_args()
 
 
@@ -67,7 +63,12 @@ def run_codegen(args) -> Path:
     if api_base:
         cmd.extend(["--base-url", api_base])
 
-    if args.greedy:
+    if args.temperature == 0.0:
+        # evalplus requires --greedy for temperature=0 (OpenAI provider asserts
+        # temperature > 0 when do_sample=True). --greedy forces n_samples=1 internally.
+        if args.n_samples > 1:
+            log.warning(f"temperature=0 with n_samples={args.n_samples} is contradictory "
+                        f"(identical outputs). Falling back to greedy (n_samples=1).")
         cmd.append("--greedy")
     else:
         cmd.extend(["--n-samples", str(args.n_samples)])
@@ -319,9 +320,9 @@ def write_oneeval_scores(args, scores: dict, samples_file: Path, eval_results_pa
         "bench_name": f"{args.dataset}plus",
         "model_name": args.model_name,
         "dataset": args.dataset,
-        "n_samples": 1 if args.greedy else args.n_samples,
+        "n_samples": args.n_samples,
         "total_samples": total_samples,
-        "temperature": 0.0 if args.greedy else args.temperature,
+        "temperature": args.temperature,
         "timestamp": timestamp,
         **scores,
     }
@@ -413,9 +414,7 @@ def main():
     log.info("HumanEval+ One-Eval bridge starting")
     log.info(f"  Model: {args.model_name}")
     log.info(f"  Dataset: {args.dataset}")
-    log.info(f"  Greedy: {args.greedy}")
-    if not args.greedy:
-        log.info(f"  n_samples={args.n_samples}, temperature={args.temperature}")
+    log.info(f"  n_samples={args.n_samples}, temperature={args.temperature}")
 
     samples_file = run_codegen(args)
     scores, eval_results_path = run_evaluate(args, samples_file)

@@ -17085,12 +17085,6 @@
               "default": 6,
               "description": "Code execution timeout in seconds"
             },
-            "skip_generation": {
-              "cli_arg": "--skip_generation",
-              "type": "flag",
-              "default": false,
-              "description": "Skip generation and use existing output for evaluation only"
-            },
             "eval_batch_size": {
               "cli_arg": "--eval_batch_size",
               "type": "int",
@@ -17217,12 +17211,6 @@
               "type": "int",
               "default": 1,
               "description": "Number of generations per problem (for pass@k)"
-            },
-            "greedy": {
-              "cli_arg": "--greedy",
-              "type": "flag",
-              "default": true,
-              "description": "Use greedy decoding for deterministic results"
             }
           },
           "run": {
@@ -17339,12 +17327,6 @@
               "type": "int",
               "default": 1,
               "description": "Number of generations per problem (for pass@k)"
-            },
-            "greedy": {
-              "cli_arg": "--greedy",
-              "type": "flag",
-              "default": true,
-              "description": "Use greedy decoding for deterministic results"
             }
           },
           "run": {
@@ -17691,8 +17673,15 @@
           "ref": "v1.25.0",
           "license": "Apache-2.0",
           "env_requires": {
-            "python": ">=3.10"
+            "python": ">=3.10",
+            "sandbox": "docker",
+            "system_packages": [
+              "docker"
+            ]
           },
+          "dockerfile": "one_eval/patches/gaia/Dockerfile",
+          "docker_image": "oneeval/gaia:latest",
+          "docker_skip_setup": true,
           "setup": [
             "{{uv}} pip install smolagents[openai] litellm ddgs markdownify requests datasets huggingface-hub --python {{python}}",
             "{{uv}} pip install pdfminer.six python-pptx mammoth openpyxl puremagic pathvalidate beautifulsoup4 --python {{python}}",
@@ -17729,7 +17718,7 @@
             "data_version": "2023_all validation split (165 questions)",
             "verified_date": "2026-07-17"
           },
-          "notes": "使用 smolagents v1.25.0 (HuggingFace 官方 Agent 框架) + OpenAIModel 运行 GAIA 评测。Agent 配备 DuckDuckGo 搜索和 Python 代码执行工具，兼容任意 OpenAI 兼容端点。⚠️ GAIA 是 gated dataset，需要：1) 在 https://huggingface.co/datasets/gaia-benchmark/GAIA 接受使用条款；2) 确保系统环境变量中已设置 HF_TOKEN（子进程自动继承）。搜索工具免费无需额外 API key。固定使用 validation split（165 题，答案公开），test split 需提交 leaderboard。评分使用 GAIA 官方 scorer：字符串归一化 exact match，支持数字/列表/文本三种比较模式。",
+          "notes": "使用 smolagents v1.25.0 (HuggingFace 官方 Agent 框架) + OpenAIModel 运行 GAIA 评测。整个评测进程在 Docker 容器中运行（sandbox=docker），Agent 生成的任意代码在容器内隔离执行，防止恶意代码影响宿主机。Agent 配备 DuckDuckGo 搜索和 Python 代码执行工具，兼容任意 OpenAI 兼容端点。⚠️ GAIA 是 gated dataset，需要：1) 在 https://huggingface.co/datasets/gaia-benchmark/GAIA 接受使用条款；2) 确保系统环境变量中已设置 HF_TOKEN（子进程自动继承）。搜索工具免费无需额外 API key。固定使用 validation split（165 题，答案公开），test split 需提交 leaderboard。评分使用 GAIA 官方 scorer：字符串归一化 exact match，支持数字/列表/文本三种比较模式。需要宿主机安装 Docker。",
           "patch_files": [
             {
               "src": "one_eval/patches/gaia/run_gaia_oneeval.py",

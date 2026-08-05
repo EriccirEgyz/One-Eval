@@ -219,7 +219,7 @@ benchmarks:
 | mbppplus | 代码生成，pass@1 | Docker（宿主机需安装并启动 Docker daemon） |
 | bfcl | 函数调用，overall accuracy | Docker（宿主机需安装并启动 Docker daemon） |
 | tau2_bench | 多轮工具调用，pass rate | 无额外前置条件 |
-| gaia | 搜索工具Agent，accuracy | ① HF_TOKEN (gated) ② 联网环境 |
+| gaia | 搜索工具Agent，accuracy | ① Docker（宿主机需安装并启动 Docker daemon） ② HF_TOKEN (gated) ③ 联网环境 |
 | omniabench | 通用Agent，pass@1 | 联网 |
 
 > **重要**：表格中展示的参数信息力求完整，但**参数的类型、默认值、choices 等细节以 `bench_gallery.json` 中对应条目的 `meta.repo_eval.params` 为最终依据**。生成 evalspec 前，不要根据其他 benchmark 推测参数。
@@ -263,7 +263,6 @@ benchmarks:
 | max_workers | int | -1 | 并行 worker 数（-1 = 自动检测） |
 | num_process_evaluate | int | 1 | 评测进程数 |
 | timeout | int | 6 | 代码执行超时（秒） |
-| skip_generation | flag | false | 跳过生成，仅使用已有输出进行评测 |
 | eval_batch_size | int | 32 | 每批评测的问题数 |
 
 #### humanevalplus
@@ -272,7 +271,6 @@ benchmarks:
 |---|---|---|---|
 | temperature | float | 0.0 | 采样温度 |
 | n_samples | int | 1 | 每题生成样本数（pass@k） |
-| greedy | flag | true | 使用贪婪解码以获得确定性结果 |
 
 #### mbppplus
 
@@ -280,7 +278,6 @@ benchmarks:
 |---|---|---|---|
 | temperature | float | 0.0 | 采样温度 |
 | n_samples | int | 1 | 每题生成样本数（pass@k） |
-| greedy | flag | true | 使用贪婪解码以获得确定性结果 |
 
 #### bfcl
 
@@ -307,7 +304,7 @@ benchmarks:
 
 | 参数 | 类型 | 默认值 | 可选值/说明 |
 |---|---|---|---|
-| concurrency | int | 5 | 并发任务数 |
+| concurrency | int | 4 | 并发任务数 |
 
 #### omniabench
 
