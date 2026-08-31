@@ -220,7 +220,7 @@ benchmarks:
 | bfcl | 函数调用，overall accuracy | Docker（宿主机需安装并启动 Docker daemon） |
 | tau2_bench | 多轮工具调用，pass rate | 无额外前置条件 |
 | gaia | 搜索工具Agent，accuracy | ① Docker（宿主机需安装并启动 Docker daemon） ② HF_TOKEN (gated) ③ 联网环境 |
-| omniabench | 通用Agent，pass@1 | 联网 |
+| omniabench | 通用Agent，pass@1 | 无额外前置条件 |
 
 > **重要**：表格中展示的参数信息力求完整，但**参数的类型、默认值、choices 等细节以 `bench_gallery.json` 中对应条目的 `meta.repo_eval.params` 为最终依据**。生成 evalspec 前，不要根据其他 benchmark 推测参数。
 
